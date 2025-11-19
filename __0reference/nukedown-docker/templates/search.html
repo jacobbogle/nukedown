@@ -1,0 +1,3487 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>nukedown - Search & Manage Downloads</title>
+    <link rel="icon" type="image/svg+xml" href="/favicon.ico">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        :root {
+            --bg-primary: #1a1a1a;
+            --bg-secondary: #2d2d2d;
+            --bg-tertiary: #3d3d3d;
+            --text-primary: #ffffff;
+            --text-secondary: #cccccc;
+            --accent-orange: #ff6b35;
+            --accent-orange-hover: #ff5722;
+            --border-color: #404040;
+            --success: #4caf50;
+            --warning: #ff9800;
+            --error: #f44336;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, var(--bg-primary) 0%, #0f0f0f 100%);
+            color: var(--text-primary);
+            min-height: 100vh;
+            line-height: 1.6;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 30px;
+            padding: 20px 0;
+            border-bottom: 2px solid var(--border-color);
+            gap: 20px;
+        }
+
+        .header-title {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .header-title h1 {
+            font-size: 2rem;
+            font-weight: 700;
+            background: linear-gradient(45deg, var(--accent-orange), #ff8a50);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin: 0;
+        }
+
+        .header-description {
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+            margin: 0;
+            max-width: 420px;
+        }
+
+        .header-actions {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        /* Tab Navigation */
+        .tabs-container {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 30px;
+            align-items: center;
+        }
+
+        .tab-button {
+            padding: 10px 20px;
+            border: 2px solid var(--border-color);
+            background: transparent;
+            color: var(--text-primary);
+            cursor: pointer;
+            border-radius: 6px;
+            font-size: 1rem;
+            font-weight: 500;
+            transition: all 0.3s ease;
+            position: relative;
+        }
+
+        .tab-button:hover {
+            border-color: var(--accent-orange);
+            color: var(--accent-orange);
+        }
+
+        .tab-button.active {
+            background: var(--accent-orange);
+            color: white;
+            border-color: var(--accent-orange);
+            box-shadow: 0 0 15px rgba(255, 107, 53, 0.3);
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+            animation: fadeIn 0.3s ease;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        /* Downloads Section Styles */
+        .downloads-config {
+            background: var(--bg-secondary);
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            border: 1px solid var(--border-color);
+        }
+
+        .config-row {
+            display: flex;
+            gap: 15px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        .config-row input {
+            flex: 1;
+            min-width: 300px;
+            padding: 10px 15px;
+            background: var(--bg-primary);
+            border: 1px solid var(--border-color);
+            color: var(--text-primary);
+            border-radius: 4px;
+            font-size: 0.95rem;
+        }
+
+        .downloads-list {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        .download-item {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 15px;
+            transition: all 0.3s ease;
+            position: relative;
+        }
+
+        .download-item.status-failed {
+            border-left: 4px solid var(--error);
+        }
+
+        .download-item.status-downloading {
+            border-left: 4px solid var(--accent-orange);
+        }
+
+        .download-item.status-completed {
+            border-left: 4px solid var(--success);
+        }
+
+        .download-item:hover {
+            border-color: var(--accent-orange);
+            box-shadow: 0 4px 12px rgba(255, 107, 53, 0.2);
+        }
+
+        .download-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 12px;
+            gap: 15px;
+        }
+
+        .download-header-left {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .download-status-icon {
+            font-size: 1.2rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 24px;
+        }
+
+        .download-title {
+            font-weight: 600;
+            font-size: 1.1rem;
+            color: var(--accent-orange);
+            flex: 1;
+        }
+
+        .download-header-right {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .download-status {
+            padding: 6px 14px;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            white-space: nowrap;
+            border: 1px solid;
+        }
+
+        .status-pending {
+            background: rgba(255, 152, 0, 0.15);
+            color: #ffb74d;
+            border-color: rgba(255, 152, 0, 0.3);
+        }
+
+        .status-downloading {
+            background: rgba(255, 107, 53, 0.15);
+            color: #ff8a50;
+            border-color: rgba(255, 107, 53, 0.3);
+        }
+
+        .status-completed {
+            background: rgba(76, 175, 80, 0.15);
+            color: #81c784;
+            border-color: rgba(76, 175, 80, 0.3);
+        }
+
+        .status-failed {
+            background: rgba(244, 67, 54, 0.15);
+            color: #ef5350;
+            border-color: rgba(244, 67, 54, 0.3);
+        }
+
+        .download-meta {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 12px;
+            margin-bottom: 12px;
+            font-size: 0.85rem;
+        }
+
+        .download-meta-item {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .download-meta-label {
+            color: var(--text-secondary);
+            font-size: 0.75rem;
+            margin-bottom: 2px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .download-meta-value {
+            color: var(--text-primary);
+            font-weight: 500;
+            word-break: break-word;
+        }
+
+        .download-progress-section {
+            margin-top: 12px;
+        }
+
+        .progress-label {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 6px;
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 12px;
+            background: var(--bg-tertiary);
+            border-radius: 6px;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, var(--accent-orange), #ff8a50);
+            transition: width 0.3s ease;
+            border-radius: 6px;
+            box-shadow: 0 0 8px rgba(255, 107, 53, 0.3);
+        }
+
+        .download-error-section {
+            background: rgba(255, 68, 68, 0.1);
+            border-left: 3px solid var(--error);
+            padding: 10px 12px;
+            border-radius: 4px;
+            margin-top: 12px;
+            display: flex;
+            align-items: flex-start;
+            gap: 10px;
+        }
+
+        .download-error-icon {
+            font-size: 1.1rem;
+            min-width: 20px;
+            margin-top: 2px;
+        }
+
+        .download-error-text {
+            color: var(--error);
+            font-size: 0.9rem;
+            flex: 1;
+        }
+
+        .download-actions {
+            display: flex;
+            gap: 8px;
+            margin-top: 12px;
+            padding-top: 12px;
+            border-top: 1px solid var(--border-color);
+        }
+
+        .download-btn {
+            flex: 1;
+            padding: 8px 12px;
+            border: none;
+            border-radius: 4px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .download-btn-delete {
+            background: rgba(255, 68, 68, 0.2);
+            color: var(--error);
+            border: 1px solid var(--error);
+        }
+
+        .download-btn-delete:hover {
+            background: var(--error);
+            color: white;
+        }
+
+        .downloads-stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .stat-card {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 15px;
+            text-align: center;
+        }
+
+        .stat-number {
+            font-size: 2rem;
+            font-weight: 700;
+            color: var(--accent-orange);
+            margin-bottom: 5px;
+        }
+
+        .stat-label {
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+        }
+
+        /* Path Management Styles */
+        .path-item {
+            background: var(--bg-tertiary);
+            padding: 12px;
+            border-radius: 8px;
+            border: 1px solid var(--border-color);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+            transition: all 0.2s ease;
+        }
+
+        .path-item:hover {
+            border-color: var(--accent-orange);
+        }
+
+        .path-item-info {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .path-item-name {
+            font-weight: 600;
+            color: var(--accent-orange);
+            margin-bottom: 4px;
+        }
+
+        .path-item-path {
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+            word-break: break-all;
+        }
+
+        .path-item-actions {
+            display: flex;
+            gap: 8px;
+            margin-left: 15px;
+            flex-shrink: 0;
+        }
+
+        .path-btn {
+            padding: 6px 12px;
+            background: var(--bg-secondary);
+            color: var(--text-primary);
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            font-size: 0.85rem;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .path-btn:hover {
+            border-color: var(--accent-orange);
+            color: var(--accent-orange);
+        }
+
+        .path-btn-delete {
+            background: rgba(244, 67, 54, 0.1);
+            color: #f44336;
+        }
+
+        .path-btn-delete:hover {
+            border-color: #f44336;
+        }
+
+        /* Modal Styles */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.7);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal-overlay.active {
+            display: flex;
+            animation: fadeIn 0.2s ease;
+        }
+
+        .modal-content {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 30px;
+            max-width: 600px;
+            width: 90%;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+            animation: slideUp 0.3s ease;
+        }
+
+        @keyframes slideUp {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .modal-header {
+            font-size: 1.4rem;
+            font-weight: 600;
+            color: var(--text-primary);
+            margin-bottom: 20px;
+        }
+
+        .modal-body {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            margin-bottom: 20px;
+            max-height: 70vh;
+            overflow-y: auto;
+            scrollbar-width: thin;
+            scrollbar-color: var(--accent-orange) var(--bg-tertiary);
+        }
+
+        .modal-body::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        .modal-body::-webkit-scrollbar-track {
+            background: var(--bg-tertiary);
+            border-radius: 6px;
+        }
+
+        .modal-body::-webkit-scrollbar-thumb {
+            background: var(--accent-orange);
+            border-radius: 6px;
+        }
+
+        .modal-body::-webkit-scrollbar-thumb:hover {
+            background: var(--accent-orange-hover);
+        }
+
+        .form-group {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .form-group label {
+            font-weight: 600;
+            color: var(--text-primary);
+            font-size: 0.95rem;
+        }
+
+        .form-group input,
+        .form-group select {
+            padding: 10px 15px;
+            background: var(--bg-primary);
+            border: 1px solid var(--border-color);
+            color: var(--text-primary);
+            border-radius: 6px;
+            font-size: 0.95rem;
+            transition: border-color 0.2s ease;
+        }
+
+        .form-group input:focus,
+        .form-group select:focus {
+            outline: none;
+            border-color: var(--accent-orange);
+            box-shadow: 0 0 0 3px rgba(255, 107, 53, 0.1);
+        }
+
+        .checkbox-group {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .checkbox-group input[type="checkbox"] {
+            width: 18px;
+            height: 18px;
+            cursor: pointer;
+        }
+
+        .checkbox-group label {
+            margin: 0;
+            cursor: pointer;
+            font-weight: 500;
+        }
+
+        .modal-footer {
+            display: flex;
+            gap: 10px;
+            justify-content: flex-end;
+        }
+
+        .modal-btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 6px;
+            font-size: 0.95rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .modal-btn-primary {
+            background: var(--accent-orange);
+            color: white;
+        }
+
+        .modal-btn-primary:hover {
+            background: var(--accent-orange-hover);
+        }
+
+        .modal-btn-secondary {
+            background: var(--bg-tertiary);
+            color: var(--text-primary);
+            border: 1px solid var(--border-color);
+        }
+
+        .modal-btn-secondary:hover {
+            background: var(--border-color);
+        }
+
+        .modal-btn-danger {
+            background: #dc3545;
+            color: white;
+        }
+
+        .modal-btn-danger:hover {
+            background: #c82333;
+        }
+
+        /* Download Path Selection Modal */
+        .path-selection-list {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            max-height: 400px;
+            overflow-y: auto;
+            scrollbar-width: thin;
+            scrollbar-color: var(--accent-orange) var(--bg-tertiary);
+        }
+
+        .path-selection-list::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        .path-selection-list::-webkit-scrollbar-track {
+            background: var(--bg-tertiary);
+            border-radius: 6px;
+        }
+
+        .path-selection-list::-webkit-scrollbar-thumb {
+            background: var(--accent-orange);
+            border-radius: 6px;
+        }
+
+        .path-selection-list::-webkit-scrollbar-thumb:hover {
+            background: var(--accent-orange-hover);
+        }
+
+        .path-selection-item {
+            padding: 12px;
+            background: var(--bg-primary);
+            border: 2px solid var(--border-color);
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .path-selection-item:hover {
+            border-color: var(--accent-orange);
+            background: var(--bg-tertiary);
+        }
+
+        .path-selection-item.selected {
+            border-color: var(--accent-orange);
+            background: rgba(255, 107, 53, 0.1);
+        }
+
+        .path-selection-name {
+            font-weight: 600;
+            color: var(--accent-orange);
+            margin-bottom: 4px;
+        }
+
+        .path-selection-path {
+            color: var(--text-secondary);
+            font-size: 0.85rem;
+            word-break: break-all;
+        }
+
+        /* Directory Browser Styles */
+        .dir-browser {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        .dir-path-input {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+
+        .dir-path-input input {
+            flex: 1;
+            padding: 10px 12px;
+            background: var(--bg-primary);
+            border: 1px solid var(--border-color);
+            color: var(--text-primary);
+            border-radius: 6px;
+            font-size: 0.9rem;
+        }
+
+        .dir-path-input button {
+            padding: 8px 16px;
+            background: var(--bg-tertiary);
+            color: var(--text-primary);
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            font-size: 0.85rem;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            white-space: nowrap;
+        }
+
+        .dir-path-input button:hover {
+            border-color: var(--accent-orange);
+            color: var(--accent-orange);
+        }
+
+        .dir-list {
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            max-height: 300px;
+            overflow-y: auto;
+            background: var(--bg-primary);
+            scrollbar-width: thin;
+            scrollbar-color: var(--accent-orange) var(--bg-tertiary);
+        }
+
+        .dir-list::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        .dir-list::-webkit-scrollbar-track {
+            background: var(--bg-tertiary);
+            border-radius: 6px;
+        }
+
+        .dir-list::-webkit-scrollbar-thumb {
+            background: var(--accent-orange);
+            border-radius: 6px;
+        }
+
+        .dir-list::-webkit-scrollbar-thumb:hover {
+            background: var(--accent-orange-hover);
+        }
+
+        .dir-item {
+            padding: 12px;
+            border-bottom: 1px solid var(--border-color);
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .dir-item:last-child {
+            border-bottom: none;
+        }
+
+        .dir-item:hover {
+            background: var(--bg-tertiary);
+            color: var(--accent-orange);
+        }
+
+        .dir-item.selected {
+            background: rgba(255, 107, 53, 0.15);
+            color: var(--accent-orange);
+            border-left: 3px solid var(--accent-orange);
+            padding-left: 9px;
+        }
+
+        .dir-breadcrumb {
+            padding: 10px 12px;
+            border-bottom: 1px solid var(--border-color);
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+            word-break: break-word;
+            max-height: 60px;
+            overflow-y: auto;
+            scrollbar-width: thin;
+        }
+
+        .dir-breadcrumb::-webkit-scrollbar {
+            height: 4px;
+        }
+
+        .dir-breadcrumb::-webkit-scrollbar-thumb {
+            background: var(--accent-orange);
+            border-radius: 2px;
+        }
+
+        .dir-breadcrumb-item {
+            cursor: pointer;
+            color: var(--accent-orange);
+            transition: all 0.2s ease;
+            padding: 2px 4px;
+            border-radius: 3px;
+        }
+
+        .dir-breadcrumb-item:hover {
+            background: rgba(255, 107, 53, 0.1);
+        }
+
+        .dir-breadcrumb-sep {
+            color: var(--text-secondary);
+            margin: 0 4px;
+        }
+
+        .dir-item-icon {
+            font-size: 1.2rem;
+        }
+
+        .dir-item-name {
+            flex: 1;
+            word-break: break-word;
+        }
+
+        .dir-loading {
+            text-align: center;
+            padding: 20px;
+            color: var(--text-secondary);
+        }
+
+        .dir-error {
+            padding: 12px;
+            background: rgba(244, 67, 54, 0.1);
+            color: #f44336;
+            border-radius: 6px;
+            font-size: 0.9rem;
+        }
+
+        .search-section {
+            background: var(--bg-secondary);
+            border-radius: 16px;
+            padding: 30px;
+            margin-bottom: 30px;
+            box-shadow: 0 12px 40px rgba(0,0,0,0.35);
+            border: 1px solid var(--border-color);
+        }
+
+        .search-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+
+        .search-title {
+            font-size: 1.4rem;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        .search-subtitle {
+            color: var(--text-secondary);
+            font-size: 0.95rem;
+            line-height: 1.4;
+            margin: 6px 0 0;
+        }
+
+        .search-panel {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            flex-wrap: wrap;
+        }
+
+        .search-input-wrapper {
+            flex: 1;
+            min-width: 220px;
+            display: flex;
+            align-items: center;
+            background: var(--bg-tertiary);
+            border: 2px solid var(--border-color);
+            border-radius: 12px;
+            padding: 8px 16px;
+            transition: all 0.3s ease;
+        }
+
+        .search-input-wrapper:focus-within {
+            border-color: var(--accent-orange);
+            box-shadow: 0 0 0 3px rgba(255, 107, 53, 0.2);
+        }
+
+        .search-icon {
+            margin-right: 12px;
+            font-size: 1.2rem;
+            color: var(--text-secondary);
+        }
+
+        .search-input-wrapper input {
+            flex: 1;
+            border: none;
+            background: transparent;
+            color: var(--text-primary);
+            font-size: 1rem;
+            outline: none;
+            padding: 10px 0;
+        }
+
+        .search-input-wrapper input::placeholder {
+            color: var(--text-secondary);
+        }
+
+        .search-actions {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .search-btn {
+            padding: 14px 28px;
+        }
+
+        .search-info {
+            font-size: 0.9rem;
+            color: var(--text-secondary);
+        }
+
+        .btn {
+            padding: 12px 25px;
+            background: linear-gradient(45deg, var(--accent-orange), var(--accent-orange-hover));
+            color: white;
+            border: none;
+            border-radius: 10px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(255, 107, 53, 0.4);
+        }
+
+        .btn-secondary {
+            background: var(--bg-tertiary);
+            color: var(--text-primary);
+        }
+
+        .btn-secondary:hover {
+            background: var(--border-color);
+        }
+
+        .results-section {
+            background: var(--bg-secondary);
+            border-radius: 15px;
+            padding: 30px;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+            border: 1px solid var(--border-color);
+        }
+
+        .results-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+            gap: 15px;
+        }
+
+        .results-count {
+            color: var(--text-secondary);
+            font-size: 1.1rem;
+        }
+
+        .results-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 20px;
+        }
+
+        .result-card {
+            background: var(--bg-tertiary);
+            border-radius: 12px;
+            overflow: hidden;
+            transition: all 0.3s ease;
+            border: 1px solid var(--border-color);
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+        }
+
+        .result-card:hover {
+            transform: translateY(-8px);
+            box-shadow: 0 15px 35px rgba(0,0,0,0.4);
+            border-color: var(--accent-orange);
+        }
+
+        .result-card:hover .result-cover {
+            opacity: 0.9;
+        }
+
+        .result-card:hover .result-overlay {
+            opacity: 1;
+            bottom: 0;
+        }
+
+        .format-badge {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            background: var(--success);
+            color: white;
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 0.7rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            z-index: 10;
+        }
+
+        .result-cover {
+            width: 100%;
+            aspect-ratio: 2 / 3;
+            background-size: cover;
+            background-position: center;
+            background-color: var(--bg-tertiary);
+            position: relative;
+            flex-shrink: 0;
+            opacity: 1;
+            transition: opacity 0.3s ease;
+            background-image: var(--lqip, none);
+        }
+
+        /* Loading state with blur/placeholder */
+        .result-cover[data-loading="true"] {
+            filter: blur(4px);
+            opacity: 0.7;
+        }
+
+        /* Loaded state */
+        .result-cover[data-loading="false"] {
+            filter: blur(0);
+            opacity: 1;
+        }
+
+        .result-cover::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: linear-gradient(180deg, transparent 60%, rgba(0,0,0,0.3) 100%);
+            opacity: 1;
+            transition: opacity 0.3s ease;
+        }
+
+        .indexer-badge {
+            position: absolute;
+            bottom: 8px;
+            right: 8px;
+            background: rgba(0,0,0,0.8);
+            color: var(--text-primary);
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 0.7rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            z-index: 5;
+        }
+
+        .result-info {
+            padding: 12px;
+            flex-grow: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            min-width: 0;
+        }
+
+        .result-title {
+            font-size: 0.95rem;
+            font-weight: 600;
+            color: var(--text-primary);
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            line-clamp: 2;
+            overflow: hidden;
+            line-height: 1.3;
+        }
+
+        .result-meta {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+        }
+
+        .meta-item {
+            display: flex;
+            align-items: center;
+            gap: 3px;
+        }
+
+        .meta-item::before {
+            content: '●';
+            color: var(--accent-orange);
+            font-size: 6px;
+        }
+
+        .result-stats {
+            display: flex;
+            gap: 6px;
+            margin: 4px 0;
+            flex-wrap: wrap;
+        }
+
+        .stat {
+            flex: 1 1 auto;
+            min-width: 110px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 4px 6px;
+            background: rgba(0,0,0,0.2);
+            border-radius: 4px;
+            font-size: 0.75rem;
+            gap: 4px;
+            overflow: hidden;
+        }
+
+        .stat-label {
+            color: var(--text-secondary);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .stat-value {
+            color: var(--accent-orange);
+            font-weight: 600;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .result-actions {
+            display: flex;
+            gap: 6px;
+            margin-top: auto;
+            min-height: 36px;
+        }
+
+        .download-btn {
+            flex: 1;
+            min-width: 0;
+            padding: 8px 6px;
+            background: var(--accent-orange);
+            color: white;
+            border: none;
+            border-radius: 6px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            text-align: center;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .download-btn:hover {
+            background: var(--accent-orange-hover);
+            transform: translateY(-1px);
+        }
+
+        .read-btn {
+            flex: 1;
+            min-width: 0;
+            padding: 8px 6px;
+            background: var(--success);
+            color: white;
+            border: none;
+            border-radius: 6px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            text-align: center;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .read-btn:hover {
+            background: #45a049;
+            transform: translateY(-1px);
+        }
+
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: var(--text-secondary);
+        }
+
+        .loading::before {
+            content: '🔍';
+            font-size: 2rem;
+            display: block;
+            margin-bottom: 15px;
+        }
+
+        .no-results {
+            text-align: center;
+            padding: 40px;
+            color: var(--text-secondary);
+        }
+
+        .no-results::before {
+            content: '📭';
+            font-size: 3rem;
+            display: block;
+            margin-bottom: 15px;
+        }
+
+        @media (max-width: 1024px) {
+            .results-grid {
+                grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+            }
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                padding: 15px;
+            }
+
+            .header h1 {
+                font-size: 2rem;
+            }
+
+            .search-row {
+                flex-direction: column;
+                align-items: stretch;
+            }
+
+            .search-form input {
+                width: 100%;
+            }
+
+            .results-grid {
+                grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+                gap: 15px;
+            }
+
+            .result-info {
+                padding: 10px;
+            }
+
+            .result-title {
+                font-size: 0.85rem;
+            }
+
+            .result-stats {
+                grid-template-columns: 1fr;
+            }
+
+            .results-header {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+        }
+
+        /* Library Section Styles */
+        .library-section {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            margin-bottom: 20px;
+            overflow: hidden;
+        }
+
+        .library-header {
+            padding: 20px;
+            background: var(--bg-tertiary);
+            border-bottom: 1px solid var(--border-color);
+            cursor: pointer;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            transition: all 0.3s ease;
+        }
+
+        .library-header:hover {
+            background: var(--bg-primary);
+        }
+
+        .library-header.expanded {
+            background: var(--bg-primary);
+            border-bottom-color: var(--accent-orange);
+        }
+
+        .library-header.empty {
+            cursor: default;
+            background: var(--bg-secondary);
+        }
+
+        .library-header.empty:hover {
+            background: var(--bg-secondary);
+        }
+
+        .library-info {
+            flex: 1;
+        }
+
+        .library-name {
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: var(--text-primary);
+            margin-bottom: 4px;
+        }
+
+        .library-path {
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+            word-break: break-all;
+        }
+
+        .library-toggle {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .library-count {
+            font-size: 0.9rem;
+            color: var(--accent-orange);
+            font-weight: 600;
+        }
+
+        .library-arrow {
+            font-size: 1.2rem;
+            transition: transform 0.3s ease;
+            color: var(--text-secondary);
+        }
+
+        .library-content {
+            padding: 0;
+            background: var(--bg-primary);
+        }
+
+        /* Responsive adjustments for libraries */
+        @media (max-width: 768px) {
+            .library-header {
+                padding: 15px;
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 10px;
+            }
+
+            .library-toggle {
+                width: 100%;
+                justify-content: space-between;
+            }
+
+            .manga-library-list {
+                grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)) !important;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div class="header-title">
+                <h1>🔍 nukedown</h1>
+                <p class="header-description">Search direct manga sources and queue downloads from a single interface.</p>
+            </div>
+            <div class="header-actions">
+                <button onclick="logout()" style="padding: 10px 16px; font-size: 0.85rem; border-radius: 8px; border: 1px solid transparent; background: rgba(231, 76, 60, 0.15); color: #e74c3c; cursor: pointer; font-weight: 600; transition: all 0.3s ease;">
+                    🚪 Logout
+                </button>
+            </div>
+        </div>
+
+        <!-- Tab Navigation -->
+        <div class="tabs-container">
+            <button class="tab-button active" onclick="switchTab('search')" data-tab="search">
+                🔍 Search
+            </button>
+            <button class="tab-button" onclick="switchTab('downloads')" data-tab="downloads">
+                ⬇️ Downloads
+            </button>
+            <button class="tab-button" onclick="switchTab('libraries')" data-tab="libraries">
+                📚 Libraries
+            </button>
+            <button class="tab-button" onclick="switchTab('settings')" data-tab="settings">
+                ⚙️ Settings
+            </button>
+        </div>
+
+        <!-- Search Tab -->
+        <div id="search" class="tab-content active">
+            <div class="search-section">
+                <div class="search-header">
+                    <div>
+                        <div class="search-title">Search & Request manga</div>
+                    </div>
+                    <div class="search-info">Need downloads? Switch to the Downloads tab after requesting.</div>
+                </div>
+                <form class="search-panel" onsubmit="performSearch(event)">
+                    <div class="search-input-wrapper">
+                        <span class="search-icon">📖</span>
+                        <input type="text" id="search-input" placeholder="Type a manga title, e.g., 'One Piece'" value="{{ query }}" required autocomplete="off">
+                    </div>
+                    <div class="search-actions">
+                        <button type="submit" class="btn search-btn">Search</button>
+                    </div>
+                    <div class="source-filters" style="margin-top: 15px;">
+                        <div style="color: var(--text-secondary); font-size: 0.9rem; font-weight: 600; margin-bottom: 10px;">Sources:</div>
+                        <div class="sources-checkboxes" style="display: flex; flex-wrap: wrap; gap: 15px;">
+                            <label style="display: flex; align-items: center; gap: 6px; cursor: pointer; color: var(--text-secondary); font-size: 0.9rem; background: var(--bg-secondary); padding: 8px 12px; border-radius: 6px; border: 1px solid var(--border-color);">
+                                <input type="checkbox" id="source-mangafox" name="source" value="mangafox" checked style="cursor: pointer;">
+                                <span>mangaFox</span>
+                            </label>
+                            <label style="display: flex; align-items: center; gap: 6px; cursor: pointer; color: var(--text-secondary); font-size: 0.9rem; background: var(--bg-secondary); padding: 8px 12px; border-radius: 6px; border: 1px solid var(--border-color);">
+                                <input type="checkbox" id="source-omegascans" name="source" value="omegascans" style="cursor: pointer;">
+                                <span>OmegaScans</span>
+                            </label>
+                            <label style="display: flex; align-items: center; gap: 6px; cursor: pointer; color: var(--text-secondary); font-size: 0.9rem; background: var(--bg-secondary); padding: 8px 12px; border-radius: 6px; border: 1px solid var(--border-color);">
+                                <input type="checkbox" id="source-hentaifox" name="source" value="hentaifox" style="cursor: pointer;">
+                                <span>HentaiFox</span>
+                            </label>
+                        </div>
+                    </div>
+                </form>
+            </div>
+
+            <div class="results-section">
+                <div class="results-header">
+                    <div class="results-count" id="results-count">Loading results...</div>
+                </div>
+
+                <div id="results-container">
+                    <div class="loading">
+                        <div>Searching across multiple indexers...</div>
+                        <div style="margin-top: 10px;">This may take a few seconds</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Downloads Tab -->
+        <div id="downloads" class="tab-content">
+            <div class="downloads-stats" id="downloads-stats">
+                <div class="stat-card">
+                    <div class="stat-number" id="stat-total">0</div>
+                    <div class="stat-label">Total Downloads</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number" id="stat-completed">0</div>
+                    <div class="stat-label">Completed</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number" id="stat-pending">0</div>
+                    <div class="stat-label">Pending</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number" id="stat-failed">0</div>
+                    <div class="stat-label">Failed</div>
+                </div>
+            </div>
+
+            <h2 style="margin-top: 20px; margin-bottom: 15px; color: var(--accent-orange);">Downloads History</h2>
+            <div class="downloads-list" id="downloads-list">
+                <div style="text-align: center; color: var(--text-secondary); padding: 40px 20px;">
+                    No downloads yet
+                </div>
+            </div>
+        </div>
+
+        <!-- Settings Tab -->
+        <div id="settings" class="tab-content">
+            <div class="search-section">
+                <h2 style="margin-bottom: 25px; color: var(--text-primary); font-size: 1.4rem;">⚙️ Settings & Paths</h2>
+                
+                <!-- Download Path Section -->
+                <div style="background: var(--bg-tertiary); padding: 20px; border-radius: 12px; border: 1px solid var(--border-color); margin-bottom: 20px;">
+                    <h3 style="color: var(--text-primary); font-size: 1.1rem; margin: 0 0 10px 0;">⬇️ Download Path</h3>
+                    <p style="color: var(--text-secondary); font-size: 0.9rem; margin-bottom: 15px;">Where torrents and files are temporarily downloaded before being organized to media paths.</p>
+                    
+                    <div id="download-path-display" style="background: rgba(244, 67, 54, 0.1); padding: 12px; border-radius: 8px; border: 2px solid rgba(244, 67, 54, 0.3); color: #ff6b6b; margin-bottom: 10px; word-break: break-all; font-weight: 500;">
+                        <span>⚠️ No download path configured</span>
+                    </div>
+                    <div style="display: flex; gap: 10px;">
+                        <button type="button" id="set-download-path-btn" class="btn" onclick="openDownloadPathModal()" style="padding: 8px 16px; font-size: 0.9rem;">📁 Set Download Path</button>
+                        <button type="button" id="edit-download-path-btn" class="btn" onclick="editDownloadPath()" style="padding: 8px 16px; font-size: 0.9rem; display: none;">✏️ Edit Download Path</button>
+                        <button type="button" id="delete-download-path-btn" class="btn" onclick="deleteDownloadPath()" style="padding: 8px 16px; font-size: 0.9rem; display: none; background: #dc3545; border-color: #dc3545;">🗑️ Delete Download Path</button>
+                    </div>
+                </div>
+
+                <!-- Media Paths Section -->
+                <div style="background: var(--bg-tertiary); padding: 20px; border-radius: 12px; border: 1px solid var(--border-color); margin-bottom: 20px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                        <div>
+                            <h3 style="color: var(--text-primary); font-size: 1.1rem; margin: 0 0 5px 0;">📚 Media Paths</h3>
+                            <p style="color: var(--text-secondary); font-size: 0.9rem; margin: 0;">Organize completed downloads to different media libraries (manga, Manwha, Light Novels, etc).</p>
+                        </div>
+                        <button type="button" class="btn" onclick="openMediaPathModal()" style="padding: 8px 16px; font-size: 0.9rem;">+ Add Media Path</button>
+                    </div>
+                    
+                    <div id="media-paths-list" style="display: flex; flex-direction: column; gap: 10px;">
+                        <div style="text-align: center; color: var(--text-secondary); padding: 20px;">
+                            No media paths configured yet
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Adult Content Filter -->
+                <div style="background: var(--bg-tertiary); padding: 20px; border-radius: 12px; border: 1px solid var(--border-color); margin-bottom: 20px;">
+                    <div style="display: flex; align-items: center; gap: 15px;">
+                        <input type="checkbox" id="adult-filter-checkbox" style="width: 18px; height: 18px; accent-color: var(--accent-orange);">
+                        <div>
+                            <h3 style="color: var(--text-primary); font-size: 1.1rem; margin: 0 0 5px 0;">🔞 Adult Content Filter</h3>
+                            <p style="color: var(--text-secondary); font-size: 0.9rem; margin: 0;">When enabled, hides adult content sources (OmegaScans, HentaiFox) and filters adult content from mangaFox results.</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Change Password -->
+                <div style="background: var(--bg-tertiary); padding: 20px; border-radius: 12px; border: 1px solid var(--border-color); margin-bottom: 20px;">
+                    <div style="margin-bottom: 15px;">
+                        <h3 style="color: var(--text-primary); font-size: 1.1rem; margin: 0 0 5px 0;">🔐 Change Password</h3>
+                        <p style="color: var(--text-secondary); font-size: 0.9rem; margin: 0;">Update your account password for better security.</p>
+                    </div>
+                    
+                    <div style="display: flex; flex-direction: column; gap: 12px;">
+                        <div>
+                            <label for="current-password" style="font-weight: 600; color: var(--text-primary); font-size: 0.9rem; margin-bottom: 5px; display: block;">Current Password</label>
+                            <input type="password" id="current-password" placeholder="Enter current password" style="width: 100%; padding: 8px 12px; border: 1px solid var(--border-color); border-radius: 6px; background: var(--bg-primary); color: var(--text-primary);">
+                        </div>
+                        <div>
+                            <label for="new-password" style="font-weight: 600; color: var(--text-primary); font-size: 0.9rem; margin-bottom: 5px; display: block;">New Password</label>
+                            <input type="password" id="new-password" placeholder="Enter new password (min 6 characters)" style="width: 100%; padding: 8px 12px; border: 1px solid var(--border-color); border-radius: 6px; background: var(--bg-primary); color: var(--text-primary);">
+                        </div>
+                        <div>
+                            <label for="confirm-password" style="font-weight: 600; color: var(--text-primary); font-size: 0.9rem; margin-bottom: 5px; display: block;">Confirm New Password</label>
+                            <input type="password" id="confirm-password" placeholder="Confirm new password" style="width: 100%; padding: 8px 12px; border: 1px solid var(--border-color); border-radius: 6px; background: var(--bg-primary); color: var(--text-primary);">
+                        </div>
+                        <button type="button" class="btn" onclick="changePassword()" style="padding: 8px 16px; font-size: 0.9rem; align-self: flex-start;">🔄 Change Password</button>
+                    </div>
+                </div>
+
+                <div id="settings-message" style="margin-top: 15px; padding: 12px; border-radius: 8px; display: none; font-weight: 600;"></div>
+            </div>
+        </div>
+
+        <!-- Libraries Tab -->
+        <div id="libraries" class="tab-content">
+            <div class="search-section">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px;">
+                    <h2 style="margin: 0; color: var(--text-primary); font-size: 1.4rem;">📚 Libraries</h2>
+                    <button type="button" class="btn" onclick="refreshmangaLibrary()" style="padding: 8px 16px; font-size: 0.9rem;">🔄 Refresh</button>
+                </div>
+                
+                <div id="manga-library-list" style="display: flex; flex-direction: column;">
+                    <div style="text-align: center; color: var(--text-secondary); padding: 40px;">
+                        Loading manga library...
+                    </div>
+                </div>
+
+                <div id="libraries-message" style="margin-top: 15px; padding: 12px; border-radius: 8px; display: none; font-weight: 600;"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Download Path Modal -->
+    <div id="download-path-modal" class="modal-overlay" onclick="closeDownloadPathModal(event)">
+        <div class="modal-content" onclick="event.stopPropagation()" style="max-width: 700px;">
+            <div class="modal-header">⬇️ Set Download Path</div>
+            <div class="modal-body">
+                <p style="color: var(--text-secondary); margin-bottom: 15px;">Select where temporary downloads will be stored before being organized to media paths.</p>
+
+                <div style="border-top: 1px solid var(--border-color); padding-top: 15px;">
+                    <label style="font-weight: 600; color: var(--text-primary); font-size: 0.95rem; margin-bottom: 10px; display: block;">📂 Browse for Directory</label>
+                    <div class="dir-browser" style="margin-top: 10px;">
+                        <div class="dir-path-input">
+                            <input type="text" id="download-path-current" placeholder="Select a directory..." readonly>
+                            <button type="button" onclick="browseDownloadPath()" style="min-width: 100px;">🔍 Browse</button>
+                        </div>
+                        <div id="download-dir-list" class="dir-list" style="display: none;">
+                            <div class="dir-loading">Loading directories...</div>
+                        </div>
+                        <div id="download-dir-error" class="dir-error" style="display: none;"></div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="modal-btn modal-btn-secondary" onclick="closeDownloadPathModal()">Cancel</button>
+                <button type="button" class="modal-btn modal-btn-primary" onclick="saveDownloadPath()">Save Download Path</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Media Path Modal -->
+    <div id="media-path-modal" class="modal-overlay" onclick="closeMediaPathModal(event)">
+        <div class="modal-content" onclick="event.stopPropagation()" style="max-width: 700px;">
+            <div class="modal-header">📚 Add Media Path</div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label for="media-path-name">Path Name (alias)</label>
+                    <input type="text" id="media-path-name" placeholder="e.g., manga, Manwha, Light Novels" required>
+                    <small style="color: var(--text-secondary);">This name will appear in the download destination selector</small>
+                </div>
+
+                <div style="border-top: 1px solid var(--border-color); padding-top: 15px; margin-top: 15px;">
+                    <label style="font-weight: 600; color: var(--text-primary); font-size: 0.95rem; margin-bottom: 10px; display: block;">📂 Browse for Directory</label>
+                    <div class="dir-browser" style="margin-top: 10px;">
+                        <div class="dir-path-input">
+                            <input type="text" id="media-path-current" placeholder="Select a directory..." readonly>
+                            <button type="button" onclick="browseMediaPath()" style="min-width: 100px;">🔍 Browse</button>
+                        </div>
+                        <div id="media-dir-list" class="dir-list" style="display: none;">
+                            <div class="dir-loading">Loading directories...</div>
+                        </div>
+                        <div id="media-dir-error" class="dir-error" style="display: none;"></div>
+                    </div>
+                    
+                    <div style="margin-top: 15px; padding: 12px; background: var(--bg-secondary); border-radius: 8px; border: 1px solid var(--border-color);">
+                        <label style="display: flex; align-items: center; cursor: pointer; color: var(--text-primary);">
+                            <input type="checkbox" id="media-path-add-subfolder" style="margin-right: 10px; cursor: pointer; width: 18px; height: 18px;">
+                            <div>
+                                <div style="font-weight: 600; margin-bottom: 4px;">Create subfolder with path name</div>
+                                <div style="color: var(--text-secondary); font-size: 0.85rem;">Adds a folder with the path name to the selected directory</div>
+                            </div>
+                        </label>
+                        <div id="media-path-preview" style="margin-top: 10px; padding: 8px; background: var(--bg-primary); border-radius: 6px; font-size: 0.85rem; font-family: monospace; color: var(--text-secondary); display: none;">
+                            Final path: <span id="media-path-preview-text" style="color: var(--accent-orange);"></span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="modal-btn modal-btn-secondary" onclick="closeMediaPathModal()">Cancel</button>
+                <button type="button" class="modal-btn modal-btn-primary" onclick="saveMediaPath()">Save Media Path</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Download Destination Modal -->
+    <div id="download-modal" class="modal-overlay" onclick="closeDownloadModal(event)">
+        <div class="modal-content" onclick="event.stopPropagation()">
+            <div class="modal-header">📚 Select Organization Path</div>
+            <div class="modal-body">
+                <p style="color: var(--text-secondary); margin-bottom: 15px;">Where should this completed download be organized? (Files will be temporarily downloaded first, then organized to your selected path)</p>
+                <div class="path-selection-list" id="path-selection-list"></div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="modal-btn modal-btn-secondary" onclick="closeDownloadModal()">Cancel</button>
+                <button type="button" class="modal-btn modal-btn-primary" onclick="confirmDownloadPath()">Start Download</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Delete All manga Confirmation Modal -->
+    <div id="delete-all-modal" class="modal-overlay" onclick="closeDeleteAllModal(event)">
+        <div class="modal-content" onclick="event.stopPropagation()" style="max-width: 500px;">
+            <div class="modal-header" id="delete-modal-title">🗑️ Delete All manga</div>
+            <div class="modal-body">
+                <div style="text-align: center; margin-bottom: 20px;">
+                    <div style="font-size: 3rem; margin-bottom: 15px;">⚠️</div>
+                    <h3 style="color: var(--text-primary); margin-bottom: 10px;">Danger Zone</h3>
+                    <p id="delete-modal-description" style="color: var(--text-secondary); margin-bottom: 20px;">This will permanently delete ALL manga from ALL libraries.</p>
+                </div>
+                
+                <div style="background: rgba(244, 67, 54, 0.1); border: 1px solid rgba(244, 67, 54, 0.3); border-radius: 8px; padding: 15px; margin-bottom: 20px;">
+                    <div style="color: #ff6b6b; font-weight: 600; margin-bottom: 10px;">⚠️ This action cannot be undone!</div>
+                    <div style="color: var(--text-secondary); font-size: 0.9rem;">
+                        All manga files and folders will be permanently removed from your media paths.
+                        Cover images and database entries will also be deleted.
+                    </div>
+                </div>
+                
+                <div style="margin-bottom: 20px;">
+                    <label for="delete-confirmation" style="display: block; color: var(--text-primary); font-weight: 600; margin-bottom: 8px;">
+                        Type "DELETE" to confirm:
+                    </label>
+                    <input type="text" id="delete-confirmation" placeholder="DELETE" style="width: 100%; padding: 10px; border: 2px solid var(--border-color); border-radius: 6px; background: var(--bg-secondary); color: var(--text-primary); font-size: 1rem; text-align: center; font-weight: bold;">
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="modal-btn modal-btn-secondary" onclick="closeDeleteAllModal()">Cancel</button>
+                <button type="button" class="modal-btn modal-btn-danger" onclick="confirmDeleteAll()">🗑️ Delete Everything</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Authentication check - get token from cookie
+        function getCookie(name) {
+            const value = `; ${document.cookie}`;
+            const parts = value.split(`; ${name}=`);
+            if (parts.length === 2) return parts.pop().split(';').shift();
+            return null;
+        }
+        
+        const authToken = getCookie('auth_token');
+        if (!authToken) {
+            window.location.href = '/login';
+        }
+
+        // Path and Download Management
+        let selectedDownloadPath = null;
+        let pendingDownloadData = null;
+
+        function openDownloadPathModal() {
+            document.getElementById('download-path-modal').classList.add('active');
+        }
+
+        async function editDownloadPath() {
+            try {
+                const response = await fetch('/api/auth/download-path', {
+                    headers: { 'Authorization': `Bearer ${authToken}` }
+                });
+                const data = await response.json();
+                
+                if (data.download_path) {
+                    document.getElementById('download-path-current').value = data.download_path;
+                }
+                
+                openDownloadPathModal();
+            } catch (error) {
+                console.error('Error loading download path for edit:', error);
+                openDownloadPathModal();
+            }
+        }
+
+        async function deleteDownloadPath() {
+            try {
+                const response = await fetch('/api/auth/download-path', {
+                    method: 'DELETE',
+                    headers: { 'Authorization': `Bearer ${authToken}` }
+                });
+                
+                if (response.ok) {
+                    showSettingsMessage('✅ Download path deleted successfully', 'success');
+                    loadDownloadPathDisplay();
+                } else {
+                    const error = await response.json();
+                    showSettingsMessage('❌ Failed to delete download path: ' + (error.error || 'Unknown error'), 'error');
+                }
+            } catch (error) {
+                console.error('Error deleting download path:', error);
+                showSettingsMessage('❌ Error deleting download path', 'error');
+            }
+        }
+
+        function closeDownloadPathModal(event) {
+            if (event && event.target !== document.getElementById('download-path-modal')) return;
+            document.getElementById('download-path-modal').classList.remove('active');
+            document.getElementById('download-path-current').value = '';
+            document.getElementById('download-dir-list').style.display = 'none';
+            document.getElementById('download-dir-error').style.display = 'none';
+        }
+
+        function openMediaPathModal() {
+            document.getElementById('media-path-modal').classList.add('active');
+            document.getElementById('media-path-name').focus();
+            
+            // Set up event listeners for preview
+            const nameInput = document.getElementById('media-path-name');
+            const pathInput = document.getElementById('media-path-current');
+            const checkbox = document.getElementById('media-path-add-subfolder');
+            
+            nameInput.addEventListener('input', updateMediaPathPreview);
+            pathInput.addEventListener('input', updateMediaPathPreview);
+            checkbox.addEventListener('change', updateMediaPathPreview);
+            
+            updateMediaPathPreview();
+        }
+
+        async function editMediaPath(pathName, pathValue) {
+            document.getElementById('media-path-name').value = pathName;
+            document.getElementById('media-path-current').value = pathValue;
+            document.getElementById('media-path-name').readOnly = true;
+            document.getElementById('media-path-modal').setAttribute('data-editing', pathName);
+            openMediaPathModal();
+        }
+
+        function closeMediaPathModal(event) {
+            if (event && event.target !== document.getElementById('media-path-modal')) return;
+            document.getElementById('media-path-modal').classList.remove('active');
+            document.getElementById('media-path-name').value = '';
+            document.getElementById('media-path-name').readOnly = false;
+            document.getElementById('media-path-current').value = '';
+            document.getElementById('media-path-add-subfolder').checked = false;
+            document.getElementById('media-path-preview').style.display = 'none';
+            document.getElementById('media-dir-list').style.display = 'none';
+            document.getElementById('media-dir-error').style.display = 'none';
+            document.getElementById('media-path-modal').removeAttribute('data-editing');
+        }
+
+        function updateMediaPathPreview() {
+            const name = document.getElementById('media-path-name').value.trim();
+            const basePath = document.getElementById('media-path-current').value.trim();
+            const addSubfolder = document.getElementById('media-path-add-subfolder').checked;
+            const previewContainer = document.getElementById('media-path-preview');
+            const previewText = document.getElementById('media-path-preview-text');
+            
+            if (!name || !basePath) {
+                previewContainer.style.display = 'none';
+                return;
+            }
+            
+            if (addSubfolder) {
+                // Use path.join logic - normalize and append with proper separator
+                let finalPath = basePath;
+                
+                // Ensure base path doesn't end with separator
+                if (finalPath.endsWith('\\') || finalPath.endsWith('/')) {
+                    finalPath = finalPath.slice(0, -1);
+                }
+                
+                // Apply same logic as save function: detect separator style from base path
+                if (basePath.includes('/')) {
+                    finalPath = finalPath + '/' + name;
+                } else {
+                    finalPath = finalPath + '\\' + name;
+                }
+                
+                previewText.textContent = finalPath;
+                previewContainer.style.display = 'block';
+            } else {
+                previewContainer.style.display = 'none';
+            }
+        }
+
+        async function browseDownloadPath() {
+            await browseDirectory('download');
+        }
+
+        async function browseMediaPath() {
+            await browseDirectory('media');
+        }
+
+        async function browseDirectory(type) {
+            const prefix = type === 'download' ? 'download-' : 'media-';
+            const container = document.getElementById(prefix + 'dir-list');
+            const errorContainer = document.getElementById(prefix + 'dir-error');
+            let currentPath = document.getElementById(prefix + 'path-current').value.trim();
+            
+            container.style.display = 'block';
+            container.innerHTML = '<div class="dir-loading">⏳ Loading directories...</div>';
+            errorContainer.style.display = 'none';
+            
+            try {
+                const response = await fetch('/api/browse-directories', {
+                    method: 'POST',
+                    headers: { 
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${authToken}`
+                    },
+                    body: JSON.stringify({ path: currentPath })
+                });
+                
+                const data = await response.json();
+                
+                if (!response.ok) {
+                    errorContainer.textContent = '❌ ' + (data.error || 'Error loading directories');
+                    errorContainer.style.display = 'block';
+                    container.style.display = 'none';
+                    return;
+                }
+                
+                if (data.current) {
+                    document.getElementById(prefix + 'path-current').value = data.current;
+                }
+                
+                const directories = data.directories || [];
+                if (directories.length === 0) {
+                    container.innerHTML = '<div class="dir-loading">No directories found in this location</div>';
+                    return;
+                }
+                
+                let breadcrumbHtml = '';
+                if (data.breadcrumb && data.breadcrumb.length > 0) {
+                    const breadcrumbItems = data.breadcrumb.map(item => 
+                        `<span class="dir-breadcrumb-item" onclick="navigateToPath('${item.path}', '${type}')" title="${item.path}">${escapeHtml(item.name)}</span>`
+                    ).join('<span class="dir-breadcrumb-sep">→</span>');
+                    
+                    breadcrumbHtml = `
+                        <div class="dir-breadcrumb">
+                            <span class="dir-breadcrumb-item" onclick="resetBrowse('${type}')" title="Back to drives">💾 Drives</span>
+                            <span class="dir-breadcrumb-sep">→</span>
+                            ${breadcrumbItems}
+                        </div>
+                    `;
+                } else {
+                    breadcrumbHtml = `
+                        <div class="dir-breadcrumb">
+                            <span style="color: var(--text-secondary);">💾 Available Drives</span>
+                        </div>
+                    `;
+                }
+                
+                const dirsHtml = directories.map((dir, index) => `
+                    <div class="dir-item" data-path="${escapeHtml(dir.path)}" onclick="navigateDirClick(this, '${type}')" title="${escapeHtml(dir.path)}">
+                        <span class="dir-item-icon">${dir.is_parent ? '↩️' : '📂'}</span>
+                        <span class="dir-item-name">${escapeHtml(dir.name)}</span>
+                    </div>
+                `).join('');
+                
+                container.innerHTML = breadcrumbHtml + dirsHtml;
+                errorContainer.style.display = 'none';
+            } catch (error) {
+                console.error('Error browsing directories:', error);
+                errorContainer.textContent = '❌ Error: ' + error.message;
+                errorContainer.style.display = 'block';
+                container.style.display = 'none';
+            }
+        }
+
+        function navigateDirClick(element, type) {
+            const path = element.getAttribute('data-path');
+            const prefix = type === 'download' ? 'download-' : 'media-';
+            if (path) {
+                document.getElementById(prefix + 'path-current').value = path;
+                setTimeout(() => {
+                    if (type === 'download') {
+                        browseDownloadPath();
+                    } else {
+                        browseMediaPath();
+                    }
+                }, 100);
+            }
+        }
+
+        function navigateToPath(path, type) {
+            const prefix = type === 'download' ? 'download-' : 'media-';
+            document.getElementById(prefix + 'path-current').value = path;
+            setTimeout(() => {
+                if (type === 'download') {
+                    browseDownloadPath();
+                } else {
+                    browseMediaPath();
+                }
+            }, 100);
+        }
+
+        function resetBrowse(type) {
+            const prefix = type === 'download' ? 'download-' : 'media-';
+            document.getElementById(prefix + 'path-current').value = '';
+            document.getElementById(prefix + 'dir-select-btn').style.display = 'none';
+            if (type === 'download') {
+                browseDownloadPath();
+            } else {
+                browseMediaPath();
+            }
+        }
+
+        async function saveDownloadPath() {
+            const path = document.getElementById('download-path-current').value.trim();
+            if (!path) {
+                return;
+            }
+
+            try {
+                const response = await fetch('/api/auth/download-path', {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${authToken}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ download_path: path })
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    showSettingsMessage('✓ Download path saved successfully!', 'success');
+                    document.getElementById('download-path-display').innerHTML = `<span style="color: var(--accent-orange);">${path}</span>`;
+                    closeDownloadPathModal();
+                    loadSettings();
+                } else {
+                    showSettingsMessage(data.message || 'Failed to save', 'error');
+                }
+            } catch (error) {
+                showSettingsMessage('Error saving path: ' + error.message, 'error');
+            }
+        }
+
+        async function saveMediaPath() {
+            const name = document.getElementById('media-path-name').value.trim();
+            let path = document.getElementById('media-path-current').value.trim();
+            const addSubfolder = document.getElementById('media-path-add-subfolder').checked;
+            const modal = document.getElementById('media-path-modal');
+            const isEditing = modal.hasAttribute('data-editing');
+            const oldName = modal.getAttribute('data-editing');
+
+            if (!name) {
+                return;
+            }
+
+            if (!path) {
+                return;
+            }
+            
+            // If checkbox is checked, append the name as a subfolder
+            if (addSubfolder) {
+                // Remove trailing separators
+                if (path.endsWith('\\') || path.endsWith('/')) {
+                    path = path.slice(0, -1);
+                }
+                // Apply same logic as download paths: detect separator style from original path
+                // If path contains '/', use forward slash, otherwise use backslash (Windows default)
+                if (path.includes('/')) {
+                    path = path + '/' + name;
+                } else {
+                    path = path + '\\' + name;
+                }
+            }
+
+            try {
+                let response;
+                
+                if (isEditing) {
+                    // Delete old path and create new one (to handle name changes)
+                    const deleteResponse = await fetch(`/api/auth/media-path/${encodeURIComponent(oldName)}`, {
+                        method: 'DELETE',
+                        headers: { 'Authorization': `Bearer ${authToken}` }
+                    });
+                    
+                    if (!deleteResponse.ok) {
+                        const deleteData = await deleteResponse.json();
+                        showSettingsMessage(deleteData.message || 'Failed to update', 'error');
+                        return;
+                    }
+                }
+                
+                response = await fetch('/api/auth/media-path', {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${authToken}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ path_name: name, media_path: path })
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    showSettingsMessage(isEditing ? '✓ Media path updated successfully!' : '✓ Media path saved successfully!', 'success');
+                    closeMediaPathModal();
+                    loadSettings();
+                } else {
+                    showSettingsMessage(data.message || 'Failed to save', 'error');
+                }
+            } catch (error) {
+                showSettingsMessage('Error saving path: ' + error.message, 'error');
+            }
+        }
+
+        function showSettingsMessage(message, type) {
+            const el = document.getElementById('settings-message');
+            el.textContent = message;
+            el.style.background = type === 'success' ? 'rgba(81, 207, 102, 0.2)' : 'rgba(255, 107, 107, 0.2)';
+            el.style.color = type === 'success' ? '#51cf66' : '#ff6b6b';
+            el.style.borderLeft = type === 'success' ? '4px solid #51cf66' : '4px solid #ff6b6b';
+            el.style.display = 'block';
+            setTimeout(() => el.style.display = 'none', 3000);
+        }
+
+        async function openDownloadModal(downloadData) {
+            // Check if download path is configured
+            try {
+                const response = await fetch('/api/auth/download-path', {
+                    headers: { 'Authorization': `Bearer ${authToken}` }
+                });
+
+                if (response.status === 401) {
+                    window.location.href = '/login';
+                    return;
+                }
+
+                const data = await response.json();
+                const downloadPath = data.download_path;
+
+                if (!downloadPath) {
+                    switchTab('settings');
+                    return;
+                }
+
+                // Load media paths for selection
+                await loadMediaPathsForDownload(downloadData, downloadPath);
+                
+                // Show the modal
+                document.getElementById('download-modal').classList.add('active');
+                pendingDownloadData = downloadData;
+            } catch (error) {
+                console.error('Error opening download modal:', error);
+            }
+        }
+
+        async function loadMediaPathsForDownload(downloadData, downloadPath) {
+            try {
+                const response = await fetch('/api/auth/media-paths', {
+                    headers: { 'Authorization': `Bearer ${authToken}` }
+                });
+
+                if (!response.ok) {
+                    throw new Error('Failed to load media paths');
+                }
+
+                const data = await response.json();
+                const paths = data.media_paths || [];
+                const list = document.getElementById('path-selection-list');
+
+                if (paths.length === 0) {
+                    list.innerHTML = '<div style="text-align: center; color: var(--text-secondary); padding: 20px;">No media paths configured. Downloads will be saved to:<br><strong>' + escapeHtml(downloadPath) + '</strong></div>';
+                    return;
+                }
+
+                list.innerHTML = paths.map(path => {
+                    // Properly escape backslashes for JavaScript string in onclick attribute
+                    const escapedPath = path.media_path.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+                    const escapedName = path.path_name.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+                    
+                    return `
+                        <div class="path-selection-item" onclick="selectMediaPathForDownload(this, '${escapedPath}', '${escapedName}')" data-path="${escapeHtml(path.media_path)}" data-name="${escapeHtml(path.path_name)}" title="${escapeHtml(path.media_path)}" style="cursor: pointer;">
+                            <div class="path-selection-name">${escapeHtml(path.path_name)}</div>
+                            <div class="path-selection-path">${escapeHtml(path.media_path)}</div>
+                        </div>
+                    `;
+                }).join('');
+            } catch (error) {
+                console.error('Error loading media paths:', error);
+                const list = document.getElementById('path-selection-list');
+                list.innerHTML = '<div style="color: #ff6b6b; padding: 20px;">Error loading media paths</div>';
+            }
+        }
+
+        function selectMediaPathForDownload(element, pathValue, pathName) {
+            // Remove previously selected
+            document.querySelectorAll('.path-selection-item').forEach(el => {
+                el.classList.remove('selected');
+            });
+            
+            // Mark as selected
+            element.classList.add('selected');
+            selectedDownloadPath = { name: pathName, path: pathValue };
+        }
+
+        async function queueDownload(downloadData, destinationPath) {
+            try {
+                const configResponse = await fetch('/api/downloads/config', {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ destination: destinationPath })
+                });
+
+                if (!configResponse.ok) {
+                    return;
+                }
+
+                // Create download entry
+                const response = await fetch('/api/downloads', {
+                    method: 'POST',
+                    headers: { 
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${authToken}`
+                    },
+                    body: JSON.stringify({
+                        title: downloadData.title,
+                        source: downloadData.source,
+                        url: downloadData.url,
+                        manga_id: downloadData.manga_id,
+                        destination: destinationPath
+                    })
+                });
+
+                if (response.ok) {
+                    const download = await response.json();
+                    
+                    switchTab('downloads');
+                    loadDownloads();
+                    
+                    fetch('/api/downloads/' + download.id + '/start', {
+                        method: 'POST',
+                        headers: { 
+                            'Content-Type': 'application/json',
+                            'Authorization': `Bearer ${authToken}`
+                        },
+                        body: JSON.stringify({
+                            manga_id: downloadData.manga_id,
+                            source: downloadData.source,
+                            url: downloadData.url
+                        })
+                    }).catch(err => console.error('Download start error:', err));
+                } else {
+                    alert('Failed to queue download. Please try again.');
+                }
+            } catch (error) {
+                console.error('Download error:', error);
+            }
+        }
+
+        function closeDownloadModal(event) {
+            if (event && event.target !== document.getElementById('download-modal')) return;
+            const modal = document.getElementById('download-modal');
+            if (modal) {
+                modal.classList.remove('active');
+            }
+            selectedDownloadPath = null;
+            pendingDownloadData = null;
+        }
+
+        async function confirmDownloadPath() {
+            // Check if a media path was selected (if media paths exist)
+            if (!pendingDownloadData) {
+                return;
+            }
+
+            // Get the download path (temporary storage)
+            const downloadPathResponse = await fetch('/api/auth/download-path', {
+                headers: { 'Authorization': `Bearer ${authToken}` }
+            });
+            const downloadPathData = await downloadPathResponse.json();
+            const tempDownloadPath = downloadPathData.download_path;
+
+            // Determine the final destination
+            let finalDestination = tempDownloadPath; // Default to download path if no media path selected
+            let destinationName = 'Download Folder';
+
+            if (selectedDownloadPath && selectedDownloadPath.path) {
+                // User selected a media path
+                finalDestination = selectedDownloadPath.path;
+                destinationName = selectedDownloadPath.name;
+            }
+
+            const downloadData = {
+                title: pendingDownloadData.title,
+                source: pendingDownloadData.source,
+                url: pendingDownloadData.url,
+                manga_id: pendingDownloadData.manga_id,
+                cover_url: pendingDownloadData.cover_url
+            };
+
+            closeDownloadModal();
+            
+            try {
+                // Debug logging
+                console.log('='.repeat(80));
+                console.log('DEBUG: FRONTEND SENDING DOWNLOAD REQUEST');
+                console.log('='.repeat(80));
+                console.log('finalDestination:', finalDestination);
+                console.log('finalDestination type:', typeof finalDestination);
+                console.log('finalDestination length:', finalDestination.length);
+                console.log('tempDownloadPath:', tempDownloadPath);
+                
+                const payload = {
+                    title: downloadData.title,
+                    source: downloadData.source,
+                    url: downloadData.url,
+                    manga_id: downloadData.manga_id,
+                    cover_url: downloadData.cover_url,
+                    temp_path: tempDownloadPath,  // Temporary download location
+                    destination: finalDestination  // Final media path destination
+                };
+                
+                console.log('Payload object:', payload);
+                console.log('JSON stringified:', JSON.stringify(payload));
+                console.log('='.repeat(80));
+                
+                // Create download entry with both temp and final paths
+                const response = await fetch('/api/downloads', {
+                    method: 'POST',
+                    headers: { 
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${authToken}`
+                    },
+                    body: JSON.stringify(payload)
+                });
+
+                if (response.ok) {
+                    const download = await response.json();
+                    
+                    switchTab('downloads');
+                    loadDownloads();
+                    
+                    fetch('/api/downloads/' + download.id + '/start', {
+                        method: 'POST',
+                        headers: { 
+                            'Content-Type': 'application/json',
+                            'Authorization': `Bearer ${authToken}`
+                        },
+                        body: JSON.stringify({
+                            manga_id: downloadData.manga_id,
+                            source: downloadData.source,
+                            url: downloadData.url
+                        })
+                    }).catch(err => console.error('Download start error:', err));
+                } else {
+                    alert('Failed to queue download. Please try again.');
+                }
+            } catch (error) {
+                console.error('Download error:', error);
+            }
+        }
+
+        // Tab switching functionality
+        function switchTab(tabName) {
+            // Hide all tabs
+            document.querySelectorAll('.tab-content').forEach(el => {
+                el.classList.remove('active');
+            });
+            
+            // Remove active from all buttons
+            document.querySelectorAll('.tab-button').forEach(el => {
+                el.classList.remove('active');
+            });
+            
+            // Show selected tab
+            document.getElementById(tabName).classList.add('active');
+            document.querySelector(`[data-tab="${tabName}"]`).classList.add('active');
+            
+            // Stop auto-refresh when leaving downloads tab
+            if (tabName !== 'downloads') {
+                stopDownloadRefresh();
+            }
+            
+            // Load downloads if switching to downloads tab
+            if (tabName === 'downloads') {
+                loadDownloads();
+            }
+            
+            // Load settings if switching to settings tab
+            if (tabName === 'settings') {
+                loadSettings();
+            }
+            
+            // Load libraries if switching to libraries tab
+            if (tabName === 'libraries') {
+                loadLibraries();
+            }
+        }
+
+        function logout() {
+            // Clear auth cookie
+            document.cookie = 'auth_token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax';
+            window.location.href = '/login';
+        }
+
+        // Adult Content Filter
+        let adultContentFilterEnabled = true; // Default to enabled
+
+        function applyAdultContentFilter() {
+            const omegascansLabel = document.querySelector('label:has(#source-omegascans)');
+            const hentaifoxLabel = document.querySelector('label:has(#source-hentaifox)');
+            
+            if (adultContentFilterEnabled) {
+                // Hide adult content sources
+                if (omegascansLabel) omegascansLabel.style.display = 'none';
+                if (hentaifoxLabel) hentaifoxLabel.style.display = 'none';
+                
+                // Uncheck them if they were checked
+                const omegascansCheckbox = document.getElementById('source-omegascans');
+                const hentaifoxCheckbox = document.getElementById('source-hentaifox');
+                if (omegascansCheckbox) omegascansCheckbox.checked = false;
+                if (hentaifoxCheckbox) hentaifoxCheckbox.checked = false;
+            } else {
+                // Show adult content sources
+                if (omegascansLabel) omegascansLabel.style.display = 'flex';
+                if (hentaifoxLabel) hentaifoxLabel.style.display = 'flex';
+            }
+        }
+
+        function toggleAdultContentFilter() {
+            const checkbox = document.getElementById('adult-filter-checkbox');
+            adultContentFilterEnabled = checkbox.checked;
+            // Save to localStorage
+            localStorage.setItem('adultContentFilterEnabled', adultContentFilterEnabled.toString());
+            applyAdultContentFilter();
+        }
+
+        // Initialize adult content filter on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            const checkbox = document.getElementById('adult-filter-checkbox');
+            if (checkbox) {
+                // Load saved state from localStorage, default to true if not set
+                const savedState = localStorage.getItem('adultContentFilterEnabled');
+                adultContentFilterEnabled = savedState !== null ? savedState === 'true' : true;
+                
+                checkbox.checked = adultContentFilterEnabled;
+                checkbox.addEventListener('change', toggleAdultContentFilter);
+                applyAdultContentFilter();
+            }
+        });
+
+        // Downloads management
+        let currentResults = [];
+        let coverImageCache = new Map();  // Cache loaded cover URLs
+        let imageLoadingTimeout = 5000;  // 5 second timeout for image loading
+        let downloadRefreshInterval = null;
+
+        async function loadDownloads() {
+            try {
+                const response = await fetch('/api/downloads', {
+                    headers: { 'Authorization': `Bearer ${authToken}` }
+                });
+                const data = await response.json();
+                
+                document.getElementById('stat-total').textContent = data.total;
+                document.getElementById('stat-completed').textContent = data.completed;
+                document.getElementById('stat-pending').textContent = data.pending;
+                document.getElementById('stat-failed').textContent = data.failed;
+                
+                const downloadsList = document.getElementById('downloads-list');
+                
+                if (data.downloads.length === 0) {
+                    downloadsList.innerHTML = '<div style="text-align: center; color: var(--text-secondary); padding: 40px 20px;">No downloads yet</div>';
+                    stopDownloadRefresh();
+                    return;
+                }
+                
+                // Check if there are any active downloads
+                const hasActiveDownloads = data.downloads.some(d => 
+                    d.status === 'downloading' || d.status === 'pending'
+                );
+                
+                // Start auto-refresh if there are active downloads
+                if (hasActiveDownloads) {
+                    startDownloadRefresh();
+                } else {
+                    stopDownloadRefresh();
+                }
+                
+                downloadsList.innerHTML = data.downloads.map(download => {
+                    // Skip null or invalid downloads
+                    if (!download || !download.title) {
+                        return '';
+                    }
+                    
+                    // Determine status icon
+                    let statusIcon = '';
+                    if (download.status === 'completed') {
+                        statusIcon = '✓';
+                    } else if (download.status === 'failed') {
+                        statusIcon = '⚠';
+                    } else if (download.status === 'downloading') {
+                        statusIcon = '↓';
+                    } else {
+                        statusIcon = '⏳';
+                    }
+                    
+                    return `
+                    <div class="download-item status-${download.status}">
+                        <div class="download-header">
+                            <div class="download-header-left">
+                                <div class="download-status-icon">${statusIcon}</div>
+                                <div class="download-title">${escapeHtml(download.title)}</div>
+                            </div>
+                            <div class="download-header-right">
+                                <span class="download-status status-${download.status}">${download.status}</span>
+                            </div>
+                        </div>
+                        
+                        <div class="download-meta">
+                            <div class="download-meta-item">
+                                <div class="download-meta-label">Source</div>
+                                <div class="download-meta-value">${download.source}</div>
+                            </div>
+                            <div class="download-meta-item">
+                                <div class="download-meta-label">Destination</div>
+                                <div class="download-meta-value" title="${download.destination}">${download.destination}</div>
+                            </div>
+                            <div class="download-meta-item">
+                                <div class="download-meta-label">Added</div>
+                                <div class="download-meta-value">${new Date(download.added_at).toLocaleString()}</div>
+                            </div>
+                            ${download.completed_at ? `
+                            <div class="download-meta-item">
+                                <div class="download-meta-label">Completed</div>
+                                <div class="download-meta-value">${new Date(download.completed_at).toLocaleString()}</div>
+                            </div>
+                            ` : ''}
+                        </div>
+                        
+                        ${download.status === 'downloading' ? `
+                        <div class="download-progress-section">
+                            <div class="progress-label">
+                                <span>Progress</span>
+                                <span>${download.progress}%</span>
+                            </div>
+                            <div class="progress-bar">
+                                <div class="progress-fill" style="width: ${download.progress}%"></div>
+                            </div>
+                        </div>
+                        ` : ''}
+                        
+                        ${download.status === 'completed' ? `
+                        <div class="download-progress-section">
+                            <div class="progress-bar">
+                                <div class="progress-fill" style="width: 100%"></div>
+                            </div>
+                        </div>
+                        ` : ''}
+                        
+                        ${download.error ? `
+                        <div class="download-error-section">
+                            <div class="download-error-icon">⚠</div>
+                            <div class="download-error-text">${escapeHtml(download.error)}</div>
+                        </div>
+                        ` : ''}
+                        
+                        <div class="download-actions">
+                            <button class="download-btn download-btn-delete" onclick="deleteDownload(${download.id})">
+                                ${download.status === 'downloading' || download.status === 'pending' ? '✖ Cancel' : '🗑 Delete'}
+                            </button>
+                        </div>
+                    </div>
+                `;
+                }).join('');
+            } catch (error) {
+                console.error('Error loading downloads:', error);
+                document.getElementById('downloads-list').innerHTML = '<div style="color: var(--error);">Failed to load downloads</div>';
+            }
+        }
+
+        async function deleteDownload(downloadId) {
+            try {
+                const response = await fetch(`/api/downloads/${downloadId}`, {
+                    method: 'DELETE',
+                    headers: { 'Authorization': `Bearer ${authToken}` }
+                });
+                
+                if (response.ok) {
+                    await loadDownloads();
+                }
+            } catch (error) {
+                console.error('Error deleting download:', error);
+            }
+        }
+
+        function startDownloadRefresh() {
+            // Only start if not already running
+            if (downloadRefreshInterval) return;
+            
+            downloadRefreshInterval = setInterval(() => {
+                // Only refresh if on downloads tab
+                if (document.getElementById('downloads').classList.contains('active')) {
+                    loadDownloads();
+                }
+            }, 2000); // Refresh every 2 seconds
+        }
+
+        function stopDownloadRefresh() {
+            if (downloadRefreshInterval) {
+                clearInterval(downloadRefreshInterval);
+                downloadRefreshInterval = null;
+            }
+        }
+
+        async function saveDownloadConfig() {
+            const destination = document.getElementById('destination-input').value.trim();
+            if (!destination) {
+                return;
+            }
+            
+            try {
+                const response = await fetch('/api/downloads/config', {
+                    method: 'PUT',
+                    headers: { 
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${authToken}`
+                    },
+                    body: JSON.stringify({ destination })
+                });
+                
+                const data = await response.json();
+            } catch (error) {
+                console.error('Error saving config:', error);
+            }
+        }
+
+        // Settings management
+        async function loadSettings() {
+            try {
+                await loadDownloadPathDisplay();
+                await loadMediaPathsList();
+            } catch (error) {
+                console.error('Error loading settings:', error);
+            }
+        }
+
+        async function changePassword() {
+            const currentPassword = document.getElementById('current-password').value.trim();
+            const newPassword = document.getElementById('new-password').value.trim();
+            const confirmPassword = document.getElementById('confirm-password').value.trim();
+            
+            if (!currentPassword || !newPassword || !confirmPassword) {
+                showSettingsMessage('❌ All password fields are required', 'error');
+                return;
+            }
+            
+            if (newPassword !== confirmPassword) {
+                showSettingsMessage('❌ New passwords do not match', 'error');
+                return;
+            }
+            
+            if (newPassword.length < 6) {
+                showSettingsMessage('❌ New password must be at least 6 characters long', 'error');
+                return;
+            }
+            
+            try {
+                const response = await fetch('/api/auth/change-password', {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${authToken}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        old_password: currentPassword,
+                        new_password: newPassword
+                    })
+                });
+                
+                const data = await response.json();
+                if (response.ok) {
+                    showSettingsMessage('✅ Password changed successfully', 'success');
+                    // Clear the form
+                    document.getElementById('current-password').value = '';
+                    document.getElementById('new-password').value = '';
+                    document.getElementById('confirm-password').value = '';
+                } else {
+                    showSettingsMessage(`❌ ${data.message || 'Failed to change password'}`, 'error');
+                }
+            } catch (error) {
+                console.error('Error changing password:', error);
+                showSettingsMessage('❌ Error changing password', 'error');
+            }
+        }
+
+        async function loadDownloadPathDisplay() {
+            try {
+                const response = await fetch('/api/auth/download-path', {
+                    headers: { 'Authorization': `Bearer ${authToken}` }
+                });
+
+                if (response.status === 401) {
+                    window.location.href = '/login';
+                    return;
+                }
+
+                const data = await response.json();
+                const displayEl = document.getElementById('download-path-display');
+                const setBtn = document.getElementById('set-download-path-btn');
+                const editBtn = document.getElementById('edit-download-path-btn');
+                const deleteBtn = document.getElementById('delete-download-path-btn');
+                
+                if (data.download_path) {
+                    displayEl.innerHTML = `<span style="color: var(--accent-orange);">${escapeHtml(data.download_path)}</span>`;
+                    displayEl.style.background = 'var(--bg-secondary)';
+                    displayEl.style.border = '1px solid var(--border-color)';
+                    displayEl.style.color = 'var(--text-primary)';
+                    setBtn.style.display = 'none';
+                    editBtn.style.display = 'block';
+                    deleteBtn.style.display = 'block';
+                } else {
+                    displayEl.innerHTML = '<span>⚠️ No download path configured</span>';
+                    displayEl.style.background = 'rgba(244, 67, 54, 0.1)';
+                    displayEl.style.border = '2px solid rgba(244, 67, 54, 0.3)';
+                    displayEl.style.color = '#ff6b6b';
+                    setBtn.style.display = 'block';
+                    editBtn.style.display = 'none';
+                    deleteBtn.style.display = 'none';
+                }
+            } catch (error) {
+                console.error('Error loading download path:', error);
+            }
+        }
+
+        async function loadMediaPathsList() {
+            try {
+                const response = await fetch('/api/auth/media-paths', {
+                    headers: { 'Authorization': `Bearer ${authToken}` }
+                });
+
+                if (response.status === 401) {
+                    window.location.href = '/login';
+                    return;
+                }
+
+                const data = await response.json();
+                const listEl = document.getElementById('media-paths-list');
+                const paths = data.media_paths || [];
+
+                if (paths.length === 0) {
+                    listEl.innerHTML = '<div style="color: var(--text-secondary); padding: 15px; text-align: center;">No media paths configured yet</div>';
+                    return;
+                }
+
+                listEl.innerHTML = paths.map((path, index) => `
+                    <div style="background: var(--bg-secondary); padding: 12px; border-radius: 8px; display: flex; justify-content: space-between; align-items: center; border: 1px solid var(--border-color);">
+                        <div style="flex: 1;">
+                            <div style="color: var(--text-primary); font-weight: 600; margin-bottom: 4px;">${escapeHtml(path.path_name)}</div>
+                            <div style="color: var(--text-secondary); font-size: 0.85rem; word-break: break-all;">${escapeHtml(path.media_path)}</div>
+                        </div>
+                        <div style="display: flex; gap: 8px; margin-left: 10px;">
+                            <button type="button" class="edit-media-path-btn" data-path-name="${escapeHtml(path.path_name)}" data-path-value="${escapeHtml(path.media_path)}" style="padding: 6px 12px; background: var(--bg-tertiary); color: var(--text-primary); border: 1px solid var(--border-color); border-radius: 6px; cursor: pointer; font-size: 0.85rem; white-space: nowrap;">✏️ Edit</button>
+                            <button type="button" class="delete-media-path-btn" data-path-name="${escapeHtml(path.path_name)}" style="padding: 6px 12px; background: rgba(244, 67, 54, 0.15); color: #ff6b6b; border: 1px solid rgba(244, 67, 54, 0.3); border-radius: 6px; cursor: pointer; font-size: 0.85rem; white-space: nowrap;">🗑️ Delete</button>
+                        </div>
+                    </div>
+                `).join('');
+                
+                // Add event listeners for edit buttons
+                document.querySelectorAll('.edit-media-path-btn').forEach(btn => {
+                    btn.addEventListener('click', function() {
+                        editMediaPath(this.dataset.pathName, this.dataset.pathValue);
+                    });
+                });
+                
+                // Add event listeners for delete buttons
+                document.querySelectorAll('.delete-media-path-btn').forEach(btn => {
+                    btn.addEventListener('click', function() {
+                        deleteMediaPath(this.dataset.pathName);
+                    });
+                });
+            } catch (error) {
+                console.error('Error loading media paths:', error);
+            }
+        }
+
+        async function deleteMediaPath(pathName) {
+            try {
+                const response = await fetch('/api/auth/media-path', {
+                    method: 'DELETE',
+                    headers: {
+                        'Authorization': `Bearer ${authToken}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ path_name: pathName })
+                });
+
+                const data = await response.json();
+                if (response.ok) {
+                    showSettingsMessage(`✅ Media path deleted`, 'success');
+                    await loadMediaPathsList();
+                } else {
+                    showSettingsMessage(`❌ Error: ${data.message || 'Failed to delete'}`, 'error');
+                }
+            } catch (error) {
+                console.error('Error deleting media path:', error);
+                showSettingsMessage('❌ Error deleting path', 'error');
+            }
+        }
+
+
+
+        function showSettingsMessage(message, type) {
+            const messageEl = document.getElementById('settings-message');
+            messageEl.textContent = message;
+            messageEl.style.display = 'block';
+            messageEl.style.backgroundColor = type === 'success' ? 'rgba(76, 175, 80, 0.15)' : 'rgba(244, 67, 54, 0.15)';
+            messageEl.style.color = type === 'success' ? '#4caf50' : '#f44336';
+            messageEl.style.borderLeft = '4px solid ' + (type === 'success' ? '#4caf50' : '#f44336');
+            
+            setTimeout(() => {
+                messageEl.style.display = 'none';
+            }, 4000);
+        }
+
+        // Search functionality
+        function performSearch(event) {
+            event.preventDefault();
+            const query = document.getElementById('search-input').value.trim();
+            if (!query) return;
+
+            // Get selected sources
+            const selectedSources = [];
+            document.querySelectorAll('input[name="source"]:checked').forEach(checkbox => {
+                selectedSources.push(checkbox.value);
+            });
+
+            // If no sources selected, show error
+            if (selectedSources.length === 0) {
+                document.getElementById('results-container').innerHTML = `
+                    <div class="no-results">
+                        <div>Please select at least one source</div>
+                        <div style="margin-top: 10px;">Check one or more source checkboxes above</div>
+                    </div>
+                `;
+                return;
+            }
+
+            // Clear old cache on new search to prevent stale data
+            coverImageCache.clear();
+
+            // Update URL with query and sources
+            const params = new URLSearchParams();
+            params.set('q', query);
+            params.set('sources', selectedSources.join(','));
+            window.history.pushState({}, '', `/?${params.toString()}`);
+
+            // Build source names for display
+            const sourceNames = selectedSources.map(s => {
+                if (s === 'mangafox') return 'mangaFox';
+                if (s === 'omegascans') return 'OmegaScans';
+                if (s === 'hentaifox') return 'HentaiFox';
+                return s;
+            }).join(' + ');
+
+            // Show loading
+            document.getElementById('results-container').innerHTML = `
+                <div class="loading">
+                    <div>🔍 Searching direct manga sources for "${query}"...</div>
+                    <div style="margin-top: 10px;">Searching: ${sourceNames}</div>
+                </div>
+            `;
+
+            // Perform search
+            const searchUrl = `/api/search?q=${encodeURIComponent(query)}&sources=${encodeURIComponent(selectedSources.join(','))}&filter_adult=${adultContentFilterEnabled}`;
+            fetch(searchUrl, {
+                headers: { 'Authorization': `Bearer ${authToken}` }
+            })
+                .then(response => response.json())
+                .then(data => {
+                    currentResults = data.results || [];
+                    displayResults(data);
+                    // Setup lazy loading after results are displayed
+                    setupLazyLoading();
+                    // Fetch real cover images asynchronously
+                    fetchActualCovers();
+                })
+                .catch(error => {
+                    console.error('Search error:', error);
+                    document.getElementById('results-container').innerHTML = `
+                        <div class="no-results">
+                            <div>Search failed</div>
+                            <div style="margin-top: 10px;">Check the console for details</div>
+                        </div>
+                    `;
+                });
+        }
+
+        // Fetch actual cover images in the background
+        function fetchActualCovers() {
+            currentResults.forEach((result, index) => {
+                // Skip null or invalid results
+                if (!result || !result.title) {
+                    return;
+                }
+                
+                // Fetch cover images for direct sources
+                if (result.direct_source && result.manga_id && result.source) {
+                    const coverUrl = `/api/cover/detail/${result.source}/${result.manga_id}`;
+                    
+                    // Store current index and title to verify we're updating the right element
+                    const currentTitle = result.title;
+                    const currentIndex = index;
+                    
+                    console.log(`[${index}] Fetching cover for: ${result.title} (${result.source})`);
+                    
+                    fetch(coverUrl, {
+                        headers: { 'Authorization': `Bearer ${authToken}` }
+                    })
+                        .then(response => {
+                            console.log(`[${currentIndex}] Cover fetch response status: ${response.status}`);
+                            return response.json();
+                        })
+                        .then(data => {
+                            if (data.cover_url) {
+                                console.log(`[${currentIndex}] ✅ Got cover: ${data.cover_url.substring(0, 80)}...`);
+                                
+                                // Verify this result is still in currentResults and at same position
+                                if (currentResults[currentIndex] && currentResults[currentIndex].title === currentTitle) {
+                                    // Update the result with actual cover (proxied for display, original for download)
+                                    currentResults[currentIndex].actual_cover_url = data.cover_url;
+                                    currentResults[currentIndex].original_cover_url = data.original_cover_url || data.cover_url;
+                                    
+                                    // Find the corresponding DOM element and update it
+                                    const covers = document.querySelectorAll('.result-cover');
+                                    if (covers[currentIndex]) {
+                                        // Double-check the element matches our result
+                                        const element = covers[currentIndex];
+                                        
+                                        // Update data-src to actual cover
+                                        element.setAttribute('data-src', data.cover_url);
+                                        // Reset loading state to allow re-fetch with real image
+                                        element.setAttribute('data-loading', 'false');
+                                        // Trigger load of actual image immediately
+                                        loadCoverImage(element, data.cover_url);
+                                    }
+                                } else {
+                                    console.warn(`[${currentIndex}] Skipping update - result was replaced by new search`);
+                                }
+                            } else {
+                                console.warn(`[${currentIndex}] ⚠️ No cover URL returned: ${data.error}`);
+                            }
+                        })
+                        .catch(error => {
+                            console.error(`[${currentIndex}] ❌ Failed to fetch cover for ${currentTitle}:`, error);
+                            // Keep using placeholder, no action needed
+                        });
+                }
+            });
+        }
+
+        // Lazy load images as they come into view
+        function setupLazyLoading() {
+            const imageElements = document.querySelectorAll('.result-cover[data-src]');
+            
+            // Use Intersection Observer for efficient lazy loading
+            const observer = new IntersectionObserver((entries, obs) => {
+                entries.forEach(entry => {
+                    if (entry.isIntersecting) {
+                        const coverElement = entry.target;
+                        const imageUrl = coverElement.getAttribute('data-src');
+                        
+                        // Skip placeholder URLs - only load actual images
+                        if (imageUrl && !imageUrl.includes('/placeholder/') && !coverImageCache.has(imageUrl)) {
+                            loadCoverImage(coverElement, imageUrl);
+                        }
+                        obs.unobserve(coverElement);
+                    }
+                });
+            }, {
+                // Load images when they're 100px before entering viewport
+                rootMargin: '100px'
+            });
+            
+            imageElements.forEach(el => observer.observe(el));
+        }
+
+        // Load cover image with timeout and error handling
+        function loadCoverImage(element, imageUrl) {
+            // Check if already cached
+            if (coverImageCache.has(imageUrl)) {
+                element.style.backgroundImage = `url('${imageUrl}')`;
+                element.setAttribute('data-loading', 'false');
+                return;
+            }
+            
+            const timeoutId = setTimeout(() => {
+                // If image doesn't load in 5 seconds, keep placeholder visible
+                element.setAttribute('data-loading', 'false');
+                console.log(`Image load timeout for ${imageUrl}`);
+            }, imageLoadingTimeout);
+            
+            const img = new Image();
+            
+            img.onload = () => {
+                clearTimeout(timeoutId);
+                element.style.backgroundImage = `url('${imageUrl}')`;
+                element.setAttribute('data-loading', 'false');
+                coverImageCache.set(imageUrl, true);
+                console.log(`✅ Loaded cover image: ${imageUrl.substring(0, 50)}...`);
+            };
+            
+            img.onerror = () => {
+                clearTimeout(timeoutId);
+                // Keep placeholder on error
+                element.setAttribute('data-loading', 'false');
+                console.warn(`Failed to load cover image: ${imageUrl}`);
+            };
+            
+            // Start loading
+            element.setAttribute('data-loading', 'true');
+            img.src = imageUrl;
+        }
+
+        function displayResults(data) {
+            const container = document.getElementById('results-container');
+            const count = document.getElementById('results-count');
+
+            count.textContent = `Found ${data.total_results} results for "${data.query}"`;
+
+            if (!data.results || data.results.length === 0) {
+                const message = data.message || 'No results found. Try different keywords.';
+                container.innerHTML = `
+                    <div class="no-results">
+                        <div>No results found</div>
+                        <div style="margin-top: 10px;">${message}</div>
+                    </div>
+                `;
+                return;
+            }
+
+            const resultsHtml = data.results.map((result, index) => {
+                // Skip null or invalid results
+                if (!result || !result.title) {
+                    return '';
+                }
+                
+                const titleLower = result.title.toLowerCase();
+                const formatBadge = titleLower.includes('cbz') ? '<div class="format-badge">CBZ</div>' :
+                                   titleLower.includes('epub') ? '<div class="format-badge">EPUB</div>' : '';
+
+                // Direct source results with LAZY LOADING
+                return `
+                <div class="result-card">
+                    <div class="result-cover" data-src="${result.cover_url}" data-loading="true">
+                        ${formatBadge}
+                        <div class="indexer-badge">${result.source || result.indexer}</div>
+                    </div>
+                    <div class="result-info">
+                        <div class="result-title">${escapeHtml(result.title)}</div>
+                        <div class="result-meta">
+                            <div class="meta-item">🔗 Read Online</div>
+                            <div class="meta-item">📱 ${result.type || 'manga'}</div>
+                            <div class="meta-item">🌐 ${result.language || 'english'}</div>
+                        </div>
+                        <div class="result-stats">
+                            <div class="stat">
+                                <span class="stat-label">📖 Type</span>
+                                <span class="stat-value">Online Reading</span>
+                            </div>
+                            <div class="stat">
+                                <span class="stat-label">⭐ Quality</span>
+                                <span class="stat-value">High</span>
+                            </div>
+                        </div>
+                        <div class="result-actions">
+                            <button class="read-btn" onclick="openmangaSource('${result.url}')">
+                                🔗 Read Online
+                            </button>
+                            <button class="download-btn" onclick="downloadmanga(${index})">
+                                ⬇️ Download
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                `;
+            }).join('');
+
+            container.innerHTML = `<div class="results-grid">${resultsHtml}</div>`;
+        }
+
+        async function downloadmanga(index) {
+            const result = currentResults[index];
+            if (!result) return;
+
+            openDownloadModal({
+                title: result.title,
+                source: result.source,
+                url: result.url,
+                manga_id: result.manga_id,
+                cover_url: result.original_cover_url || result.actual_cover_url || result.cover_url
+            });
+        }
+
+        function openmangaSource(url) {
+            // Open the direct manga source in a new tab
+            window.open(url, '_blank');
+        }
+
+        function formatDate(dateString) {
+            if (!dateString) return 'Unknown';
+            try {
+                const date = new Date(dateString);
+                return date.toLocaleDateString();
+            } catch {
+                return 'Unknown';
+            }
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        // Libraries management
+        async function loadLibraries() {
+            try {
+                await loadLibrariesDownloadPath();
+                await loadLibrariesMediaPaths();
+                await refreshmangaLibrary();
+            } catch (error) {
+                console.error('Error loading libraries:', error);
+            }
+        }
+
+        async function loadLibrariesDownloadPath() {
+            try {
+                const response = await fetch('/api/auth/download-path', {
+                    headers: { 'Authorization': `Bearer ${authToken}` }
+                });
+
+                if (response.status === 401) {
+                    window.location.href = '/login';
+                    return;
+                }
+
+                const data = await response.json();
+                const displayEl = document.getElementById('libraries-download-path');
+                
+                if (data.download_path) {
+                    displayEl.innerHTML = `<span style="color: var(--accent-orange);">${escapeHtml(data.download_path)}</span>`;
+                    displayEl.style.background = 'var(--bg-secondary)';
+                    displayEl.style.border = '1px solid var(--border-color)';
+                    displayEl.style.color = 'var(--text-primary)';
+                } else {
+                    displayEl.innerHTML = '<span>⚠️ No download path configured</span>';
+                    displayEl.style.background = 'rgba(244, 67, 54, 0.1)';
+                    displayEl.style.border = '2px solid rgba(244, 67, 54, 0.3)';
+                    displayEl.style.color = '#ff6b6b';
+                }
+            } catch (error) {
+                console.error('Error loading libraries download path:', error);
+            }
+        }
+
+        async function loadLibrariesMediaPaths() {
+            try {
+                const response = await fetch('/api/auth/media-paths', {
+                    headers: { 'Authorization': `Bearer ${authToken}` }
+                });
+
+                if (response.status === 401) {
+                    window.location.href = '/login';
+                    return;
+                }
+
+                const data = await response.json();
+                const listEl = document.getElementById('libraries-media-paths');
+                const paths = data.media_paths || [];
+
+                if (paths.length === 0) {
+                    listEl.innerHTML = '<div style="color: var(--text-secondary); padding: 15px; text-align: center;">No media paths configured yet</div>';
+                    return;
+                }
+
+                listEl.innerHTML = paths.map((path, index) => `
+                    <div style="background: var(--bg-secondary); padding: 12px; border-radius: 8px; display: flex; justify-content: space-between; align-items: center; border: 1px solid var(--border-color); margin-bottom: 8px;">
+                        <div style="flex: 1;">
+                            <div style="color: var(--text-primary); font-weight: 600; margin-bottom: 4px;">${escapeHtml(path.path_name)}</div>
+                            <div style="color: var(--text-secondary); font-size: 0.85rem; word-break: break-all;">${escapeHtml(path.media_path)}</div>
+                        </div>
+                        <div style="display: flex; gap: 8px; margin-left: 10px;">
+                            <button type="button" class="delete-media-path-btn" data-path-name="${escapeHtml(path.path_name)}" style="padding: 6px 12px; background: rgba(244, 67, 54, 0.15); color: #ff6b6b; border: 1px solid rgba(244, 67, 54, 0.3); border-radius: 6px; cursor: pointer; font-size: 0.85rem; white-space: nowrap;">🗑️ Delete</button>
+                        </div>
+                    </div>
+                `).join('');
+                
+                // Add event listeners for delete buttons
+                document.querySelectorAll('.delete-media-path-btn').forEach(btn => {
+                    btn.addEventListener('click', function() {
+                        deleteMediaPathFromLibraries(this.dataset.pathName);
+                    });
+                });
+            } catch (error) {
+                console.error('Error loading libraries media paths:', error);
+            }
+        }
+
+        async function refreshmangaLibrary() {
+            const listEl = document.getElementById('manga-library-list');
+            listEl.innerHTML = '<div style="text-align: center; color: var(--text-secondary); padding: 40px;">Loading manga library...</div>';
+
+            try {
+                const response = await fetch('/api/libraries/manga', {
+                    headers: { 'Authorization': `Bearer ${authToken}` }
+                });
+
+                if (response.status === 401) {
+                    window.location.href = '/login';
+                    return;
+                }
+
+                const data = await response.json();
+                const libraries = data.libraries || {};
+
+                const libraryNames = Object.keys(libraries);
+                if (libraryNames.length === 0) {
+                    listEl.innerHTML = '<div style="text-align: center; color: var(--text-secondary); padding: 40px;">No manga found in your libraries</div>';
+                    return;
+                }
+
+                listEl.innerHTML = libraryNames.map(libraryName => {
+                    const library = libraries[libraryName];
+                    const mangaCount = library.manga.length;
+
+                    if (mangaCount === 0) {
+                        return `
+                            <div class="library-section">
+                                <div class="library-header empty">
+                                    <div class="library-info">
+                                        <div class="library-name">${escapeHtml(libraryName)}</div>
+                                        <div class="library-path">${escapeHtml(library.path)}</div>
+                                    </div>
+                                    <div class="library-count">0 manga</div>
+                                </div>
+                                <div class="library-content" style="display: none;">
+                                    <div style="text-align: center; color: var(--text-secondary); padding: 20px;">No manga in this library</div>
+                                </div>
+                            </div>
+                        `;
+                    }
+
+                    const mangaGrid = library.manga.map(item => `
+                        <div style="background: var(--bg-secondary); border-radius: 12px; border: 1px solid var(--border-color); overflow: hidden; display: flex; flex-direction: column;">
+                            <div style="width: 100%; aspect-ratio: 2 / 3; background: var(--bg-tertiary); background-image: url('${item.cover_url || '/static/placeholder-cover.svg'}'); background-size: cover; background-position: center; background-repeat: no-repeat;" title="Cover: ${item.cover_url || 'placeholder'}"></div>
+                            <div style="padding: 12px;">
+                                <div style="color: var(--text-primary); font-weight: 600; font-size: 0.9rem; margin-bottom: 8px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${escapeHtml(item.title)}">${escapeHtml(item.title)}</div>
+                                <div style="color: var(--text-secondary); font-size: 0.8rem; margin-bottom: 12px;">${item.file_count} files</div>
+                                <button type="button" class="btn delete-manga-btn" data-manga-path="${escapeHtml(item.full_path)}" data-manga-title="${escapeHtml(item.title)}" data-library="${escapeHtml(libraryName)}" style="width: 100%; padding: 8px; background: rgba(244, 67, 54, 0.15); color: #ff6b6b; border: 1px solid rgba(244, 67, 54, 0.3); border-radius: 6px; cursor: pointer; font-size: 0.85rem;">🗑️ Delete</button>
+                            </div>
+                        </div>
+                    `).join('');
+
+                    return `
+                        <div class="library-section">
+                            <div class="library-header" onclick="toggleLibrary('${escapeHtml(libraryName)}')">
+                                <div class="library-info">
+                                    <div class="library-name">${escapeHtml(libraryName)}</div>
+                                    <div class="library-path">${escapeHtml(library.path)}</div>
+                                </div>
+                                <div class="library-toggle">
+                                    <div class="library-count">${mangaCount} manga</div>
+                                    <div class="library-arrow">▶️</div>
+                                    <button type="button" class="btn delete-all-btn" onclick="event.stopPropagation(); deleteLibrarymanga('${escapeHtml(libraryName)}')" style="padding: 6px 12px; font-size: 0.8rem; background: rgba(244, 67, 54, 0.15); color: #ff6b6b; border: 1px solid rgba(244, 67, 54, 0.3); border-radius: 4px; cursor: pointer; margin-left: 10px;">🗑️ Delete All</button>
+                                </div>
+                            </div>
+                            <div class="library-content" id="library-${escapeHtml(libraryName)}" style="display: none;">
+                                <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 15px; padding: 20px;">
+                                    ${mangaGrid}
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+
+                // Add event listeners for delete buttons
+                document.querySelectorAll('.delete-manga-btn').forEach(btn => {
+                    btn.addEventListener('click', function() {
+                        deletemanga(this.dataset.mangaPath, this.dataset.mangaTitle);
+                    });
+                });
+            } catch (error) {
+                console.error('Error loading manga library:', error);
+                listEl.innerHTML = '<div style="text-align: center; color: var(--error); padding: 40px;">Failed to load manga library</div>';
+            }
+        }
+
+        async function deletemanga(mangaPath, mangaTitle) {
+            try {
+                const response = await fetch('/api/libraries/manga', {
+                    method: 'DELETE',
+                    headers: { 
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${authToken}`
+                    },
+                    body: JSON.stringify({ manga_path: mangaPath })
+                });
+
+                const data = await response.json();
+                if (response.ok) {
+                    showLibrariesMessage(`✅ "${mangaTitle}" deleted successfully`, 'success');
+                    await refreshmangaLibrary();
+                } else {
+                    showLibrariesMessage(`❌ Error: ${data.message || 'Failed to delete manga'}`, 'error');
+                }
+            } catch (error) {
+                console.error('Error deleting manga:', error);
+                showLibrariesMessage('❌ Error deleting manga', 'error');
+            }
+        }
+
+        async function deleteAllmanga() {
+            // Clear the confirmation input
+            document.getElementById('delete-confirmation').value = '';
+            // Clear any library name (for all manga deletion)
+            delete document.getElementById('delete-all-modal').dataset.libraryName;
+            // Reset modal title
+            document.getElementById('delete-modal-title').textContent = 'Delete All manga';
+            // Reset modal description
+            document.getElementById('delete-modal-description').textContent = 'This will permanently delete all manga files and database entries from all libraries. This action cannot be undone.';
+            // Show the modal
+            document.getElementById('delete-all-modal').classList.add('active');
+        }
+
+        function closeDeleteAllModal(event) {
+            if (event) {
+                // Only close if clicking the overlay itself, not child elements
+                if (event.target.id === 'delete-all-modal') {
+                    document.getElementById('delete-all-modal').classList.remove('active');
+                }
+            } else {
+                // Called programmatically
+                document.getElementById('delete-all-modal').classList.remove('active');
+            }
+        }
+
+        async function confirmDeleteAll() {
+            const confirmation = document.getElementById('delete-confirmation').value.trim();
+            if (confirmation !== 'DELETE') {
+                alert('Please type "DELETE" to confirm the deletion.');
+                return;
+            }
+
+            // Close the modal
+            closeDeleteAllModal();
+
+            const modal = document.getElementById('delete-all-modal');
+            const libraryName = modal.dataset.libraryName;
+
+            try {
+                let url, successMessage;
+                if (libraryName) {
+                    // Delete from specific library
+                    url = `/api/libraries/manga/library/${encodeURIComponent(libraryName)}`;
+                    successMessage = `✅ All manga in "${libraryName}" deleted successfully`;
+                } else {
+                    // Delete all manga
+                    url = '/api/libraries/manga/all';
+                    successMessage = '✅ All manga deleted successfully';
+                }
+
+                const response = await fetch(url, {
+                    method: 'DELETE',
+                    headers: { 'Authorization': `Bearer ${authToken}` }
+                });
+
+                const data = await response.json();
+                if (response.ok) {
+                    showLibrariesMessage(`${successMessage} (${data.deleted_count} items, ${data.deleted_from_db} from database)`, 'success');
+                    await refreshmangaLibrary();
+                } else {
+                    showLibrariesMessage(`❌ Error: ${data.message || 'Failed to delete manga'}`, 'error');
+                }
+            } catch (error) {
+                console.error('Error deleting manga:', error);
+                showLibrariesMessage('❌ Error deleting manga', 'error');
+            }
+        }
+
+        async function deleteLibrarymanga(libraryName) {
+            // Debug: Check if function is called
+            console.log('deleteLibrarymanga called with:', libraryName);
+            
+            try {
+                // Clear the confirmation input
+                const confirmationInput = document.getElementById('delete-confirmation');
+                if (confirmationInput) {
+                    confirmationInput.value = '';
+                } else {
+                    console.error('delete-confirmation input not found');
+                    return;
+                }
+                
+                // Store the library name for the confirmation
+                const modal = document.getElementById('delete-all-modal');
+                if (modal) {
+                    modal.dataset.libraryName = libraryName;
+                } else {
+                    console.error('delete-all-modal not found');
+                    return;
+                }
+                
+                // Update modal title
+                const titleElement = document.getElementById('delete-modal-title');
+                if (titleElement) {
+                    titleElement.textContent = `Delete All manga in "${libraryName}"`;
+                } else {
+                    console.error('delete-modal-title not found');
+                }
+                
+                // Update modal description
+                const descElement = document.getElementById('delete-modal-description');
+                if (descElement) {
+                    descElement.textContent = `This will permanently delete all manga files and database entries in the "${libraryName}" library. This action cannot be undone.`;
+                } else {
+                    console.error('delete-modal-description not found');
+                }
+                
+                // Show the modal
+                modal.classList.add('active');
+            } catch (error) {
+                console.error('Error in deleteLibrarymanga:', error);
+            }
+        }
+
+        async function deleteAllLibraries() {
+            const confirmed = confirm('Type "DELETE" to confirm deleting ALL media paths and their contents.\n\nThis action cannot be undone.');
+            if (!confirmed) return;
+
+            const confirmation = prompt('Type "DELETE" to confirm:');
+            if (confirmation !== 'DELETE') {
+                alert('Deletion cancelled - incorrect confirmation text.');
+                return;
+            }
+
+            try {
+                const response = await fetch('/api/libraries/all', {
+                    method: 'DELETE',
+                    headers: { 'Authorization': `Bearer ${authToken}` }
+                });
+
+                const data = await response.json();
+                if (response.ok) {
+                    showLibrariesMessage(`✅ All libraries deleted successfully (${data.deleted_count} paths)`, 'success');
+                    await loadLibraries();
+                } else {
+                    showLibrariesMessage(`❌ Error: ${data.message || 'Failed to delete all libraries'}`, 'error');
+                }
+            } catch (error) {
+                console.error('Error deleting all libraries:', error);
+                showLibrariesMessage('❌ Error deleting all libraries', 'error');
+            }
+        }
+
+        async function deleteMediaPathFromLibraries(pathName) {
+            const confirmed = confirm(`Are you sure you want to delete the "${pathName}" media path?\n\nThis will remove the path configuration but not delete the actual files.`);
+            if (!confirmed) return;
+
+            try {
+                const response = await fetch('/api/auth/media-path', {
+                    method: 'DELETE',
+                    headers: {
+                        'Authorization': `Bearer ${authToken}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ path_name: pathName })
+                });
+
+                const data = await response.json();
+                if (response.ok) {
+                    showLibrariesMessage(`✅ Media path "${pathName}" deleted`, 'success');
+                    await loadLibrariesMediaPaths();
+                } else {
+                    showLibrariesMessage(`❌ Error: ${data.message || 'Failed to delete media path'}`, 'error');
+                }
+            } catch (error) {
+                console.error('Error deleting media path:', error);
+                showLibrariesMessage('❌ Error deleting media path', 'error');
+            }
+        }
+
+        function showLibrariesMessage(message, type) {
+            const messageEl = document.getElementById('libraries-message');
+            messageEl.textContent = message;
+            messageEl.style.display = 'block';
+            messageEl.style.backgroundColor = type === 'success' ? 'rgba(76, 175, 80, 0.15)' : 'rgba(244, 67, 54, 0.15)';
+            messageEl.style.color = type === 'success' ? '#4caf50' : '#f44336';
+            messageEl.style.borderLeft = '4px solid ' + (type === 'success' ? '#4caf50' : '#f44336');
+            
+            setTimeout(() => {
+                messageEl.style.display = 'none';
+            }, 4000);
+        }
+
+        function toggleLibrary(libraryName) {
+            const contentEl = document.getElementById(`library-${libraryName}`);
+            const headerEl = contentEl.previousElementSibling;
+            const arrowEl = headerEl.querySelector('.library-arrow');
+            
+            if (contentEl.style.display === 'none') {
+                contentEl.style.display = 'block';
+                arrowEl.textContent = '🔽';
+                headerEl.classList.add('expanded');
+            } else {
+                contentEl.style.display = 'none';
+                arrowEl.textContent = '▶️';
+                headerEl.classList.remove('expanded');
+            }
+        }
+    </script>
+</body>
+</html>
