@@ -1,7 +1,8 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>nukedown - manga Download Interface</title>
+    <title>Nukedown - Youtube Download Interface</title>
+    <link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <style>
         :root {
@@ -327,8 +328,8 @@
 <body>
     <div class="container">
         <div class="header">
-            <h1>📚 nukedown</h1>
-            <p>Your personal manga request interface. Search, download, and organize manga with ease.</p>
+            <h1>🎥 Nukedown</h1>
+            <p>Your personal Youtube downloader.</p>
         </div>
 
         <div class="stats">
@@ -352,15 +353,15 @@
 
         <div class="search-section">
             <form method="POST" action="/request" class="search-form">
-                <input type="text" name="title" placeholder="Enter manga title (e.g., 'Naruto', 'One Piece', 'Attack on Titan')" required>
+                <input type="text" name="title" placeholder="Enter Youtube title (e.g., 'Naruto', 'One Piece', 'Attack on Titan')" required>
                 <button type="submit" class="btn">
                     <span class="loading" id="loading" style="display: none;"></span>
-                    Request manga
+                    Request 
                 </button>
             </form>
             <div style="text-align: center; margin-top: 15px;">
                 <a href="/search" class="btn btn-secondary" style="text-decoration: none; display: inline-block; margin-right: 10px;">🔍 Advanced Search</a>
-                <a href="/popular" class="btn btn-secondary" style="text-decoration: none; display: inline-block;">🔥 Popular manga</a>
+                <a href="/popular" class="btn btn-secondary" style="text-decoration: none; display: inline-block;">🔥 Popular</a>
             </div>
         </div>
 
@@ -381,7 +382,7 @@
                 {% endfor %}
             {% else %}
                 <div class="empty-state">
-                    <p>No requests yet. Try requesting a manga above!</p>
+                    <p>No requests yet. Try requesting above!</p>
                 </div>
             {% endif %}
         </div>

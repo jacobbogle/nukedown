@@ -1,8 +1,8 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>nukedown - Search & Manage Downloads</title>
-    <link rel="icon" type="image/svg+xml" href="/favicon.ico">
+    <title>Nukedown - Search & Manage Downloads</title>
+    <link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <style>
         :root {
@@ -1365,32 +1365,13 @@
             padding: 0;
             background: var(--bg-primary);
         }
-
-        /* Responsive adjustments for libraries */
-        @media (max-width: 768px) {
-            .library-header {
-                padding: 15px;
-                flex-direction: column;
-                align-items: flex-start;
-                gap: 10px;
-            }
-
-            .library-toggle {
-                width: 100%;
-                justify-content: space-between;
-            }
-
-            .manga-library-list {
-                grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)) !important;
-            }
-        }
     </style>
 </head>
 <body>
     <div class="container">
         <div class="header">
             <div class="header-title">
-                <h1>🔍 nukedown</h1>
+                <h1>🎥 Nukedown</h1>
                 <p class="header-description">Youtube downloads from a single interface.</p>
             </div>
             <div class="header-actions">
@@ -1403,14 +1384,11 @@
         <!-- Tab Navigation -->
         <div class="tabs-container">
 
-            <button class="tab-button" onclick="switchTab('youtube')" data-tab="youtube">
+            <button class="tab-button active" onclick="switchTab('youtube')" data-tab="youtube">
                 🎥 YouTube
             </button>
-            <button class="tab-button active" onclick="switchTab('downloads')" data-tab="downloads">
+            <button class="tab-button" onclick="switchTab('downloads')" data-tab="downloads">
                 ⬇️ Downloads
-            </button>
-            <button class="tab-button" onclick="switchTab('libraries')" data-tab="libraries">
-                📚 Libraries
             </button>
             <button class="tab-button" onclick="switchTab('settings')" data-tab="settings">
                 ⚙️ Settings
@@ -1418,21 +1396,35 @@
         </div>
 
         <!-- YouTube Tab -->
-        <div id="youtube" class="tab-content">
+        <div id="youtube" class="tab-content active">
             <div class="search-section">
-                <h2 style="margin-bottom: 25px; color: var(--text-primary); font-size: 1.4rem;">🎥 Download YouTube Video</h2>
+                <h2 style="margin-bottom: 25px; color: var(--text-primary); font-size: 1.4rem;">🎥 Download YouTube Videos</h2>
+                <p style="color: var(--text-secondary); margin-bottom: 30px; font-size: 0.95rem;">Paste a YouTube URL below to download videos, audio, or entire playlists. Files are saved to your configured media folder in a 'YouTube' subfolder.</p>
                 <form id="youtube-form" onsubmit="downloadYouTube(event)">
-                    <div class="search-form">
-                        <input type="url" id="youtube-url" placeholder="Enter YouTube URL, e.g., https://www.youtube.com/watch?v=..." required autocomplete="off" style="flex: 1;">
-                        <button type="submit" class="btn" style="padding: 15px 30px; font-size: 16px;">⬇️ Download</button>
+                    <div class="search-form" style="margin-bottom: 20px;">
+                        <input type="url" id="youtube-url" oninput="validateYouTubeUrl()" placeholder="https://www.youtube.com/watch?v=..." required autocomplete="off" style="flex: 1; padding: 15px 20px; font-size: 16px;">
+                        <button type="submit" id="youtube-download-btn" class="btn" style="padding: 15px 30px; font-size: 16px; white-space: nowrap;">⬇️ Download</button>
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 20px;">
+                        <input type="checkbox" id="youtube-audio-only" style="cursor: pointer;">
+                        <label for="youtube-audio-only" style="color: var(--text-secondary); font-size: 0.9rem; cursor: pointer;">Download audio only (MP3)</label>
                     </div>
                 </form>
-                <div id="youtube-status" style="margin-top: 20px; color: var(--text-secondary);"></div>
+                <div id="youtube-status" style="margin-top: 20px; padding: 15px; border-radius: 8px; background: var(--bg-tertiary); color: var(--text-secondary); display: none;"></div>
+                <div style="margin-top: 30px; padding: 20px; background: var(--bg-secondary); border-radius: 10px; border: 1px solid var(--border-color);">
+                    <h3 style="margin-bottom: 15px; color: var(--accent-orange); font-size: 1rem;">📋 Supported Formats</h3>
+                    <ul style="color: var(--text-secondary); font-size: 0.9rem; line-height: 1.6;">
+                        <li>YouTube videos, audio, and playlists</li>
+                        <li>Automatic quality selection (up to 1080p for video, 192kbps for audio)</li>
+                        <li>MP4 format for video, MP3 format for audio</li>
+                        <li>Saved to: <code style="background: var(--bg-primary); padding: 2px 6px; border-radius: 4px;">{media_path}/YouTube/</code></li>
+                    </ul>
+                </div>
             </div>
         </div>
 
         <!-- Downloads Tab -->
-        <div id="downloads" class="tab-content active">
+        <div id="downloads" class="tab-content">
             <div class="downloads-stats" id="downloads-stats">
                 <div class="stat-card">
                     <div class="stat-number" id="stat-total">0</div>
@@ -1525,23 +1517,7 @@
             </div>
         </div>
 
-        <!-- Libraries Tab -->
-        <div id="libraries" class="tab-content">
-            <div class="search-section">
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px;">
-                    <h2 style="margin: 0; color: var(--text-primary); font-size: 1.4rem;">📚 Libraries</h2>
-                    <button type="button" class="btn" onclick="refreshmangaLibrary()" style="padding: 8px 16px; font-size: 0.9rem;">🔄 Refresh</button>
-                </div>
-                
-                <div id="manga-library-list" style="display: flex; flex-direction: column;">
-                    <div style="text-align: center; color: var(--text-secondary); padding: 40px;">
-                        Loading video library...
-                    </div>
-                </div>
 
-                <div id="libraries-message" style="margin-top: 15px; padding: 12px; border-radius: 8px; display: none; font-weight: 600;"></div>
-            </div>
-        </div>
     </div>
 
     <!-- Download Path Modal -->
@@ -1640,7 +1616,7 @@
                 <div style="text-align: center; margin-bottom: 20px;">
                     <div style="font-size: 3rem; margin-bottom: 15px;">⚠️</div>
                     <h3 style="color: var(--text-primary); margin-bottom: 10px;">Danger Zone</h3>
-                    <p id="delete-modal-description" style="color: var(--text-secondary); margin-bottom: 20px;">This will permanently delete ALL videos from ALL libraries.</p>
+                    <p id="delete-modal-description" style="color: var(--text-secondary); margin-bottom: 20px;">This will permanently delete ALL media from ALL libraries.</p>
                 </div>
                 
                 <div style="background: rgba(244, 67, 54, 0.1); border: 1px solid rgba(244, 67, 54, 0.3); border-radius: 8px; padding: 15px; margin-bottom: 20px;">
@@ -2307,11 +2283,6 @@
             if (tabName === 'settings') {
                 loadSettings();
             }
-            
-            // Load libraries if switching to libraries tab
-            if (tabName === 'libraries') {
-                loadLibraries();
-            }
         }
 
         function logout() {
@@ -2813,6 +2784,28 @@
                 });
         }
 
+        // Validate YouTube URL and update button
+        function validateYouTubeUrl() {
+            const input = document.getElementById('youtube-url');
+            const button = document.getElementById('youtube-download-btn');
+            const url = input.value.trim();
+            
+            // Check if it's a valid YouTube URL
+            const youtubeRegex = /^(https?:\/\/)?(www\.)?(youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/|youtube\.com\/v\/)[a-zA-Z0-9_-]{11}/;
+            const isValid = youtubeRegex.test(url);
+            
+            if (url && isValid) {
+                button.style.background = 'var(--success)';
+                button.style.borderColor = 'var(--success)';
+            } else if (url && !isValid) {
+                button.style.background = 'var(--error)';
+                button.style.borderColor = 'var(--error)';
+            } else {
+                button.style.background = '';
+                button.style.borderColor = '';
+            }
+        }
+
         // YouTube download functionality
         function downloadYouTube(event) {
             event.preventDefault();
@@ -2820,7 +2813,10 @@
             if (!url) return;
 
             const statusDiv = document.getElementById('youtube-status');
+            statusDiv.style.display = 'block';
             statusDiv.innerHTML = '⏳ Starting download...';
+            statusDiv.style.background = 'var(--bg-tertiary)';
+            statusDiv.style.color = 'var(--text-secondary)';
 
             fetch('/api/youtube_download', {
                 method: 'POST',
@@ -2828,22 +2824,31 @@
                     'Content-Type': 'application/json',
                     'Authorization': `Bearer ${authToken}`
                 },
-                body: JSON.stringify({ url: url })
+                body: JSON.stringify({ 
+                    url: url,
+                    audio_only: document.getElementById('youtube-audio-only').checked
+                })
             })
                 .then(response => response.json())
                 .then(data => {
                     if (data.success) {
-                        statusDiv.innerHTML = '✅ Download started! Check the Downloads tab for progress.';
+                        statusDiv.innerHTML = '✅ Download started! Check your media folder for the video.';
+                        statusDiv.style.background = 'rgba(76, 175, 80, 0.1)';
+                        statusDiv.style.color = '#4caf50';
                         document.getElementById('youtube-url').value = '';
                         // Refresh downloads list
                         loadDownloads();
                     } else {
                         statusDiv.innerHTML = `❌ Error: ${data.error || 'Unknown error'}`;
+                        statusDiv.style.background = 'rgba(244, 67, 54, 0.1)';
+                        statusDiv.style.color = '#f44336';
                     }
                 })
                 .catch(error => {
                     console.error('YouTube download error:', error);
                     statusDiv.innerHTML = '❌ Download failed. Check the console for details.';
+                    statusDiv.style.background = 'rgba(244, 67, 54, 0.1)';
+                    statusDiv.style.color = '#f44336';
                 });
         }
 
@@ -3074,401 +3079,11 @@
             return div.innerHTML;
         }
 
-        // Libraries management
-        async function loadLibraries() {
-            try {
-                await loadLibrariesDownloadPath();
-                await loadLibrariesMediaPaths();
-                await refreshmangaLibrary();
-            } catch (error) {
-                console.error('Error loading libraries:', error);
-            }
-        }
 
-        async function loadLibrariesDownloadPath() {
-            try {
-                const response = await fetch('/api/auth/download-path', {
-                    headers: { 'Authorization': `Bearer ${authToken}` }
-                });
 
-                if (response.status === 401) {
-                    window.location.href = '/login';
-                    return;
-                }
 
-                const data = await response.json();
-                const displayEl = document.getElementById('libraries-download-path');
-                
-                if (data.download_path) {
-                    displayEl.innerHTML = `<span style="color: var(--accent-orange);">${escapeHtml(data.download_path)}</span>`;
-                    displayEl.style.background = 'var(--bg-secondary)';
-                    displayEl.style.border = '1px solid var(--border-color)';
-                    displayEl.style.color = 'var(--text-primary)';
-                } else {
-                    displayEl.innerHTML = '<span>⚠️ No download path configured</span>';
-                    displayEl.style.background = 'rgba(244, 67, 54, 0.1)';
-                    displayEl.style.border = '2px solid rgba(244, 67, 54, 0.3)';
-                    displayEl.style.color = '#ff6b6b';
-                }
-            } catch (error) {
-                console.error('Error loading libraries download path:', error);
-            }
-        }
 
-        async function loadLibrariesMediaPaths() {
-            try {
-                const response = await fetch('/api/auth/media-paths', {
-                    headers: { 'Authorization': `Bearer ${authToken}` }
-                });
 
-                if (response.status === 401) {
-                    window.location.href = '/login';
-                    return;
-                }
-
-                const data = await response.json();
-                const listEl = document.getElementById('libraries-media-paths');
-                const paths = data.media_paths || [];
-
-                if (paths.length === 0) {
-                    listEl.innerHTML = '<div style="color: var(--text-secondary); padding: 15px; text-align: center;">No media paths configured yet</div>';
-                    return;
-                }
-
-                listEl.innerHTML = paths.map((path, index) => `
-                    <div style="background: var(--bg-secondary); padding: 12px; border-radius: 8px; display: flex; justify-content: space-between; align-items: center; border: 1px solid var(--border-color); margin-bottom: 8px;">
-                        <div style="flex: 1;">
-                            <div style="color: var(--text-primary); font-weight: 600; margin-bottom: 4px;">${escapeHtml(path.path_name)}</div>
-                            <div style="color: var(--text-secondary); font-size: 0.85rem; word-break: break-all;">${escapeHtml(path.media_path)}</div>
-                        </div>
-                        <div style="display: flex; gap: 8px; margin-left: 10px;">
-                            <button type="button" class="delete-media-path-btn" data-path-name="${escapeHtml(path.path_name)}" style="padding: 6px 12px; background: rgba(244, 67, 54, 0.15); color: #ff6b6b; border: 1px solid rgba(244, 67, 54, 0.3); border-radius: 6px; cursor: pointer; font-size: 0.85rem; white-space: nowrap;">🗑️ Delete</button>
-                        </div>
-                    </div>
-                `).join('');
-                
-                // Add event listeners for delete buttons
-                document.querySelectorAll('.delete-media-path-btn').forEach(btn => {
-                    btn.addEventListener('click', function() {
-                        deleteMediaPathFromLibraries(this.dataset.pathName);
-                    });
-                });
-            } catch (error) {
-                console.error('Error loading libraries media paths:', error);
-            }
-        }
-
-        async function refreshmangaLibrary() {
-            const listEl = document.getElementById('manga-library-list');
-            listEl.innerHTML = '<div style="text-align: center; color: var(--text-secondary); padding: 40px;">Loading video library...</div>';
-
-            try {
-                const response = await fetch('/api/libraries/manga', {
-                    headers: { 'Authorization': `Bearer ${authToken}` }
-                });
-
-                if (response.status === 401) {
-                    window.location.href = '/login';
-                    return;
-                }
-
-                const data = await response.json();
-                const libraries = data.libraries || {};
-
-                const libraryNames = Object.keys(libraries);
-                if (libraryNames.length === 0) {
-                    listEl.innerHTML = '<div style="text-align: center; color: var(--text-secondary); padding: 40px;">No videos found in your libraries</div>';
-                    return;
-                }
-
-                listEl.innerHTML = libraryNames.map(libraryName => {
-                    const library = libraries[libraryName];
-                    const mangaCount = library.manga.length;
-
-                    if (mangaCount === 0) {
-                        return `
-                            <div class="library-section">
-                                <div class="library-header empty">
-                                    <div class="library-info">
-                                        <div class="library-name">${escapeHtml(libraryName)}</div>
-                                        <div class="library-path">${escapeHtml(library.path)}</div>
-                                    </div>
-                                    <div class="library-count">0 manga</div>
-                                </div>
-                                <div class="library-content" style="display: none;">
-                                    <div style="text-align: center; color: var(--text-secondary); padding: 20px;">No videos in this library</div>
-                                </div>
-                            </div>
-                        `;
-                    }
-
-                    const mangaGrid = library.manga.map(item => `
-                        <div style="background: var(--bg-secondary); border-radius: 12px; border: 1px solid var(--border-color); overflow: hidden; display: flex; flex-direction: column;">
-                            <div style="width: 100%; aspect-ratio: 2 / 3; background: var(--bg-tertiary); background-image: url('${item.cover_url || '/static/placeholder-cover.svg'}'); background-size: cover; background-position: center; background-repeat: no-repeat;" title="Cover: ${item.cover_url || 'placeholder'}"></div>
-                            <div style="padding: 12px;">
-                                <div style="color: var(--text-primary); font-weight: 600; font-size: 0.9rem; margin-bottom: 8px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${escapeHtml(item.title)}">${escapeHtml(item.title)}</div>
-                                <div style="color: var(--text-secondary); font-size: 0.8rem; margin-bottom: 12px;">${item.file_count} files</div>
-                                <button type="button" class="btn delete-manga-btn" data-manga-path="${escapeHtml(item.full_path)}" data-manga-title="${escapeHtml(item.title)}" data-library="${escapeHtml(libraryName)}" style="width: 100%; padding: 8px; background: rgba(244, 67, 54, 0.15); color: #ff6b6b; border: 1px solid rgba(244, 67, 54, 0.3); border-radius: 6px; cursor: pointer; font-size: 0.85rem;">🗑️ Delete</button>
-                            </div>
-                        </div>
-                    `).join('');
-
-                    return `
-                        <div class="library-section">
-                            <div class="library-header" onclick="toggleLibrary('${escapeHtml(libraryName)}')">
-                                <div class="library-info">
-                                    <div class="library-name">${escapeHtml(libraryName)}</div>
-                                    <div class="library-path">${escapeHtml(library.path)}</div>
-                                </div>
-                                <div class="library-toggle">
-                                    <div class="library-count">${mangaCount} manga</div>
-                                    <div class="library-arrow">▶️</div>
-                                    <button type="button" class="btn delete-all-btn" onclick="event.stopPropagation(); deleteLibrarymanga('${escapeHtml(libraryName)}')" style="padding: 6px 12px; font-size: 0.8rem; background: rgba(244, 67, 54, 0.15); color: #ff6b6b; border: 1px solid rgba(244, 67, 54, 0.3); border-radius: 4px; cursor: pointer; margin-left: 10px;">🗑️ Delete All</button>
-                                </div>
-                            </div>
-                            <div class="library-content" id="library-${escapeHtml(libraryName)}" style="display: none;">
-                                <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 15px; padding: 20px;">
-                                    ${mangaGrid}
-                                </div>
-                            </div>
-                        </div>
-                    `;
-                }).join('');
-
-                // Add event listeners for delete buttons
-                document.querySelectorAll('.delete-manga-btn').forEach(btn => {
-                    btn.addEventListener('click', function() {
-                        deletemanga(this.dataset.mangaPath, this.dataset.mangaTitle);
-                    });
-                });
-            } catch (error) {
-                console.error('Error loading video library:', error);
-                listEl.innerHTML = '<div style="text-align: center; color: var(--error); padding: 40px;">Failed to load video library</div>';
-            }
-        }
-
-        async function deletemanga(mangaPath, mangaTitle) {
-            try {
-                const response = await fetch('/api/libraries/manga', {
-                    method: 'DELETE',
-                    headers: { 
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${authToken}`
-                    },
-                    body: JSON.stringify({ manga_path: mangaPath })
-                });
-
-                const data = await response.json();
-                if (response.ok) {
-                    showLibrariesMessage(`✅ "${mangaTitle}" deleted successfully`, 'success');
-                    await refreshmangaLibrary();
-                } else {
-                    showLibrariesMessage(`❌ Error: ${data.message || 'Failed to delete manga'}`, 'error');
-                }
-            } catch (error) {
-                console.error('Error deleting manga:', error);
-                showLibrariesMessage('❌ Error deleting manga', 'error');
-            }
-        }
-
-        async function deleteAllmanga() {
-            // Clear the confirmation input
-            document.getElementById('delete-confirmation').value = '';
-            // Clear any library name (for all manga deletion)
-            delete document.getElementById('delete-all-modal').dataset.libraryName;
-            // Reset modal title
-            document.getElementById('delete-modal-title').textContent = 'Delete All manga';
-            // Reset modal description
-            document.getElementById('delete-modal-description').textContent = 'This will permanently delete all video files and database entries from all libraries. This action cannot be undone.';
-            // Show the modal
-            document.getElementById('delete-all-modal').classList.add('active');
-        }
-
-        function closeDeleteAllModal(event) {
-            if (event) {
-                // Only close if clicking the overlay itself, not child elements
-                if (event.target.id === 'delete-all-modal') {
-                    document.getElementById('delete-all-modal').classList.remove('active');
-                }
-            } else {
-                // Called programmatically
-                document.getElementById('delete-all-modal').classList.remove('active');
-            }
-        }
-
-        async function confirmDeleteAll() {
-            const confirmation = document.getElementById('delete-confirmation').value.trim();
-            if (confirmation !== 'DELETE') {
-                alert('Please type "DELETE" to confirm the deletion.');
-                return;
-            }
-
-            // Close the modal
-            closeDeleteAllModal();
-
-            const modal = document.getElementById('delete-all-modal');
-            const libraryName = modal.dataset.libraryName;
-
-            try {
-                let url, successMessage;
-                if (libraryName) {
-                    // Delete from specific library
-                    url = `/api/libraries/videos/library/${encodeURIComponent(libraryName)}`;
-                    successMessage = `✅ All videos in "${libraryName}" deleted successfully`;
-                } else {
-                    // Delete all videos
-                    url = '/api/libraries/videos/all';
-                    successMessage = '✅ All videos deleted successfully';
-                }
-
-                const response = await fetch(url, {
-                    method: 'DELETE',
-                    headers: { 'Authorization': `Bearer ${authToken}` }
-                });
-
-                const data = await response.json();
-                if (response.ok) {
-                    showLibrariesMessage(`${successMessage} (${data.deleted_count} items, ${data.deleted_from_db} from database)`, 'success');
-                    await refreshmangaLibrary();
-                } else {
-                    showLibrariesMessage(`❌ Error: ${data.message || 'Failed to delete manga'}`, 'error');
-                }
-            } catch (error) {
-                console.error('Error deleting manga:', error);
-                showLibrariesMessage('❌ Error deleting manga', 'error');
-            }
-        }
-
-        async function deleteLibrarymanga(libraryName) {
-            // Debug: Check if function is called
-            console.log('deleteLibrarymanga called with:', libraryName);
-            
-            try {
-                // Clear the confirmation input
-                const confirmationInput = document.getElementById('delete-confirmation');
-                if (confirmationInput) {
-                    confirmationInput.value = '';
-                } else {
-                    console.error('delete-confirmation input not found');
-                    return;
-                }
-                
-                // Store the library name for the confirmation
-                const modal = document.getElementById('delete-all-modal');
-                if (modal) {
-                    modal.dataset.libraryName = libraryName;
-                } else {
-                    console.error('delete-all-modal not found');
-                    return;
-                }
-                
-                // Update modal title
-                const titleElement = document.getElementById('delete-modal-title');
-                if (titleElement) {
-                    titleElement.textContent = `Delete All vidoes in "${libraryName}"`;
-                } else {
-                    console.error('delete-modal-title not found');
-                }
-                
-                // Update modal description
-                const descElement = document.getElementById('delete-modal-description');
-                if (descElement) {
-                    descElement.textContent = `This will permanently delete all video files and database entries in the "${libraryName}" library. This action cannot be undone.`;
-                } else {
-                    console.error('delete-modal-description not found');
-                }
-                
-                // Show the modal
-                modal.classList.add('active');
-            } catch (error) {
-                console.error('Error in deleteLibrarymanga:', error);
-            }
-        }
-
-        async function deleteAllLibraries() {
-            const confirmed = confirm('Type "DELETE" to confirm deleting ALL media paths and their contents.\n\nThis action cannot be undone.');
-            if (!confirmed) return;
-
-            const confirmation = prompt('Type "DELETE" to confirm:');
-            if (confirmation !== 'DELETE') {
-                alert('Deletion cancelled - incorrect confirmation text.');
-                return;
-            }
-
-            try {
-                const response = await fetch('/api/libraries/all', {
-                    method: 'DELETE',
-                    headers: { 'Authorization': `Bearer ${authToken}` }
-                });
-
-                const data = await response.json();
-                if (response.ok) {
-                    showLibrariesMessage(`✅ All libraries deleted successfully (${data.deleted_count} paths)`, 'success');
-                    await loadLibraries();
-                } else {
-                    showLibrariesMessage(`❌ Error: ${data.message || 'Failed to delete all libraries'}`, 'error');
-                }
-            } catch (error) {
-                console.error('Error deleting all libraries:', error);
-                showLibrariesMessage('❌ Error deleting all libraries', 'error');
-            }
-        }
-
-        async function deleteMediaPathFromLibraries(pathName) {
-            const confirmed = confirm(`Are you sure you want to delete the "${pathName}" media path?\n\nThis will remove the path configuration but not delete the actual files.`);
-            if (!confirmed) return;
-
-            try {
-                const response = await fetch('/api/auth/media-path', {
-                    method: 'DELETE',
-                    headers: {
-                        'Authorization': `Bearer ${authToken}`,
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({ path_name: pathName })
-                });
-
-                const data = await response.json();
-                if (response.ok) {
-                    showLibrariesMessage(`✅ Media path "${pathName}" deleted`, 'success');
-                    await loadLibrariesMediaPaths();
-                } else {
-                    showLibrariesMessage(`❌ Error: ${data.message || 'Failed to delete media path'}`, 'error');
-                }
-            } catch (error) {
-                console.error('Error deleting media path:', error);
-                showLibrariesMessage('❌ Error deleting media path', 'error');
-            }
-        }
-
-        function showLibrariesMessage(message, type) {
-            const messageEl = document.getElementById('libraries-message');
-            messageEl.textContent = message;
-            messageEl.style.display = 'block';
-            messageEl.style.backgroundColor = type === 'success' ? 'rgba(76, 175, 80, 0.15)' : 'rgba(244, 67, 54, 0.15)';
-            messageEl.style.color = type === 'success' ? '#4caf50' : '#f44336';
-            messageEl.style.borderLeft = '4px solid ' + (type === 'success' ? '#4caf50' : '#f44336');
-            
-            setTimeout(() => {
-                messageEl.style.display = 'none';
-            }, 4000);
-        }
-
-        function toggleLibrary(libraryName) {
-            const contentEl = document.getElementById(`library-${libraryName}`);
-            const headerEl = contentEl.previousElementSibling;
-            const arrowEl = headerEl.querySelector('.library-arrow');
-            
-            if (contentEl.style.display === 'none') {
-                contentEl.style.display = 'block';
-                arrowEl.textContent = '🔽';
-                headerEl.classList.add('expanded');
-            } else {
-                contentEl.style.display = 'none';
-                arrowEl.textContent = '▶️';
-                headerEl.classList.remove('expanded');
-            }
-        }
     </script>
 </body>
 </html>

@@ -34,6 +34,9 @@ requests_db = []
 # Path aliases storage (in production, use a database)
 path_aliases = {}
 
+# YouTube downloads tracking
+youtube_downloads = []
+
 def normalize_title(title):
     """Normalize title for deduplication"""
     import re
@@ -320,15 +323,15 @@ def _scan_and_update_manga_library(user_id, auth_token):
                 if depth > 1:  # Only look at top-level manga folders
                     continue
                     
-                # Check if this directory contains manga files
-                manga_files = [f for f in files if f.lower().endswith(('.cbz', '.cbr', '.pdf', '.epub'))]
+                # Check if this directory contains manga/video files
+                manga_files = [f for f in files if f.lower().endswith(('.cbz', '.cbr', '.pdf', '.epub', '.mp4', '.webm', '.m4v', '.m4a', '.avi', '.mov', '.wmv', '.flv', '.mkv', '.mp3', '.m4a', '.flac', '.wav', '.aac', '.ogg'))]
                 if manga_files:
                     # This is a manga directory
                     manga_title = os.path.basename(root)
                     manga_path = os.path.normpath(root)
                     found_manga_paths.add(manga_path)
                     
-                    # Try to find a cover image named "cover"
+                    # Try to find a cover image named "cover" or video thumbnail
                     cover_url = None
                     # Look for exact "cover.jpg" first, then other cover files (case-insensitive)
                     files_lower = [f.lower() for f in files]
@@ -344,8 +347,14 @@ def _scan_and_update_manga_library(user_id, auth_token):
                     elif 'cover.gif' in files_lower:
                         cover_files = [files[files_lower.index('cover.gif')]]
                     else:
-                        # Fallback to any file starting with "cover."
-                        cover_files = [f for f in files if f.lower().startswith('cover.') and f.lower().endswith(('.jpg', '.jpeg', '.png', '.webp', '.gif'))]
+                        # Look for YouTube thumbnail files
+                        thumbnail_files = [f for f in files if f.lower().endswith(('.jpg', '.jpeg', '.png', '.webp')) and 
+                                         (f.lower().startswith(manga_title.lower()[:20]) or 'thumb' in f.lower() or 'thumbnail' in f.lower())]
+                        if thumbnail_files:
+                            cover_files = thumbnail_files[:1]  # Take first match
+                        else:
+                            # Fallback to any image file
+                            cover_files = [f for f in files if f.lower().endswith(('.jpg', '.jpeg', '.png', '.webp', '.gif'))]
                     
                     if cover_files:
                         # Use the cover file
@@ -814,6 +823,38 @@ def downloads_config():
         return jsonify({'error': 'Invalid configuration'}), 400
 
 
+@app.route('/api/downloads', methods=['GET'])
+@token_required
+def get_downloads():
+    """Get download queue status"""
+    # TODO: Integrate with actual download queue
+    downloads = []
+    total = 0
+    completed = 0
+    pending = 0
+    failed = 0
+    
+    # Add manga downloads (placeholder)
+    # Add YouTube downloads
+    for yt_download in youtube_downloads:
+        downloads.append(yt_download)
+        total += 1
+        if yt_download['status'] == 'completed':
+            completed += 1
+        elif yt_download['status'] == 'downloading':
+            pending += 1  # or downloading
+        elif yt_download['status'] == 'failed':
+            failed += 1
+    
+    return jsonify({
+        'downloads': downloads,
+        'total': total,
+        'completed': completed,
+        'pending': pending,
+        'failed': failed
+    })
+
+
 @app.route('/api/youtube_download', methods=['POST'])
 @token_required
 def youtube_download():
@@ -828,21 +869,142 @@ def youtube_download():
     if not download_path:
         return jsonify({'error': 'Download path not configured'}), 400
     
-    # Create YouTube folder if it doesn't exist
-    youtube_dir = os.path.join(download_path, 'YouTube')
+    # Get user's media paths
+    media_paths = auth_db.get_media_paths(request.user_id)
+    if not media_paths:
+        return jsonify({'error': 'Media paths not configured'}), 400
+    
+    # Use the first media path for YouTube videos
+    media_path = media_paths[0]['media_path']  # Get first media path
+    
+    # Create YouTube folder in media path
+    youtube_dir = os.path.join(media_path, 'YouTube')
     os.makedirs(youtube_dir, exist_ok=True)
     
     # Start download in background thread
     def download_video():
+        audio_only = data.get('audio_only', False)
+        
+        # Add to downloads list
+        download_id = len(youtube_downloads) + 1
+        download_entry = {
+            'id': download_id,
+            'title': 'YouTube Download',
+            'status': 'downloading',
+            'progress': 0,
+            'url': url,
+            'type': 'youtube',
+            'audio_only': audio_only,
+            'source': 'YouTube',
+            'destination': youtube_dir,
+            'added_at': datetime.now().isoformat(),
+            'created_at': datetime.now().isoformat(),
+        }
+        youtube_downloads.append(download_entry)
+        
         try:
-            ydl_opts = {
-                'outtmpl': os.path.join(youtube_dir, '%(title)s.%(ext)s'),
-                'format': 'best[height<=1080]',  # Limit to 1080p
-            }
+            # Download to download path first
+            temp_dir = os.path.join(download_path, 'YouTube_temp')
+            os.makedirs(temp_dir, exist_ok=True)
+            
+            # Get video info to determine if it's a playlist
+            info_opts = {'quiet': True, 'no_warnings': True}
+            with yt_dlp.YoutubeDL(info_opts) as ydl:
+                info = ydl.extract_info(url, download=False)
+            
+            is_playlist = 'entries' in info
+            has_chapters = 'chapters' in info and len(info['chapters']) > 1
+            
+            # Update title with actual video/playlist title
+            if is_playlist:
+                download_entry['title'] = f"YouTube Playlist: {info.get('title', 'Unknown Playlist')}"
+            else:
+                download_entry['title'] = f"YouTube: {info.get('title', 'Unknown Video')}"
+            
+            # Progress hook function
+            def progress_hook(d):
+                if d['status'] == 'downloading':
+                    try:
+                        total = d.get('total_bytes') or d.get('total_bytes_estimate', 0)
+                        downloaded = d.get('downloaded_bytes', 0)
+                        if total > 0:
+                            progress = int((downloaded / total) * 100)
+                            download_entry['progress'] = progress
+                    except:
+                        pass
+                elif d['status'] == 'finished':
+                    download_entry['progress'] = 100
+            
+            if audio_only:
+                if is_playlist:
+                    outtmpl = '%(playlist_title)s/%(title)s.%(ext)s'
+                else:
+                    outtmpl = '%(title)s/%(title)s.%(ext)s'
+                ydl_opts = {
+                    'outtmpl': os.path.join(temp_dir, outtmpl),
+                    'format': 'bestaudio/best',
+                    'writethumbnail': True,
+                    'writeinfojson': True,
+                    'progress_hooks': [progress_hook],
+                    'postprocessors': [{
+                        'key': 'FFmpegExtractAudio',
+                        'preferredcodec': 'mp3',
+                        'preferredquality': '192',
+                    }],
+                }
+            else:
+                if has_chapters:
+                    outtmpl = '%(title)s/%(title)s - %(section_number)s %(section_title)s.%(ext)s'
+                    ydl_opts = {
+                        'outtmpl': os.path.join(temp_dir, outtmpl),
+                        'format': 'best[height<=1080]',
+                        'split_chapters': True,
+                        'writethumbnail': True,
+                        'writeinfojson': True,
+                        'progress_hooks': [progress_hook],
+                    }
+                elif is_playlist:
+                    outtmpl = '%(playlist_title)s/%(title)s/%(title)s.%(ext)s'
+                    ydl_opts = {
+                        'outtmpl': os.path.join(temp_dir, outtmpl),
+                        'format': 'best[height<=1080]',
+                        'writethumbnail': True,
+                        'writeinfojson': True,
+                        'progress_hooks': [progress_hook],
+                    }
+                else:
+                    outtmpl = '%(title)s/%(title)s.%(ext)s'
+                    ydl_opts = {
+                        'outtmpl': os.path.join(temp_dir, outtmpl),
+                        'format': 'best[height<=1080]',
+                        'writethumbnail': True,
+                        'writeinfojson': True,
+                        'progress_hooks': [progress_hook],
+                    }
+            
             with yt_dlp.YoutubeDL(ydl_opts) as ydl:
                 ydl.download([url])
+            
+            # After download, move files to media path
+            for root, dirs, files in os.walk(temp_dir):
+                for file in files:
+                    src = os.path.join(root, file)
+                    rel_path = os.path.relpath(src, temp_dir)
+                    dst = os.path.join(youtube_dir, rel_path)
+                    os.makedirs(os.path.dirname(dst), exist_ok=True)
+                    shutil.move(src, dst)
+            
+            # Clean up temp directory
+            shutil.rmtree(temp_dir)
+            
+            # Mark as completed
+            download_entry['status'] = 'completed'
+            download_entry['progress'] = 100
+            download_entry['completed_at'] = datetime.now().isoformat()
+            
         except Exception as e:
             print(f"YouTube download error: {e}")
+            download_entry['status'] = 'failed'
     
     thread = threading.Thread(target=download_video)
     thread.daemon = True
