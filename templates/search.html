@@ -4,6 +4,9 @@
     <title>Nukedown - Search & Manage Downloads</title>
     <link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
     <style>
         :root {
             --bg-primary: #1a1a1a;
@@ -1417,7 +1420,7 @@
                         <li>YouTube videos, audio, and playlists</li>
                         <li>Automatic quality selection (up to 1080p for video, 192kbps for audio)</li>
                         <li>MP4 format for video, MP3 format for audio</li>
-                        <li>Saved to: <code style="background: var(--bg-primary); padding: 2px 6px; border-radius: 4px;">{media_path}/YouTube/</code></li>
+                        <li>Saved to: <code style="background: var(--bg-primary); padding: 2px 6px; border-radius: 4px;">{media_path}</code></li>
                     </ul>
                 </div>
             </div>
@@ -1728,7 +1731,7 @@
         async function editMediaPath(pathName, pathValue) {
             document.getElementById('media-path-name').value = pathName;
             document.getElementById('media-path-current').value = pathValue;
-            document.getElementById('media-path-name').readOnly = true;
+            // Allow editing the name when editing (don't set readOnly)
             document.getElementById('media-path-modal').setAttribute('data-editing', pathName);
             openMediaPathModal();
         }
@@ -1737,7 +1740,7 @@
             if (event && event.target !== document.getElementById('media-path-modal')) return;
             document.getElementById('media-path-modal').classList.remove('active');
             document.getElementById('media-path-name').value = '';
-            document.getElementById('media-path-name').readOnly = false;
+            // No longer need to reset readOnly since we allow editing names
             document.getElementById('media-path-current').value = '';
             document.getElementById('media-path-add-subfolder').checked = false;
             document.getElementById('media-path-preview').style.display = 'none';
@@ -2794,9 +2797,10 @@
             const button = document.getElementById('youtube-download-btn');
             const url = input.value.trim();
             
-            // Check if it's a valid YouTube URL
-            const youtubeRegex = /^(https?:\/\/)?(www\.)?(youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/|youtube\.com\/v\/)[a-zA-Z0-9_-]{11}/;
-            const isValid = youtubeRegex.test(url);
+            // Check if it's a valid YouTube URL (videos or playlists)
+            const youtubeVideoRegex = /^(https?:\/\/)?(www\.)?(youtube\.com\/(watch\?v=|embed\/|v\/)|youtu\.be\/)[a-zA-Z0-9_-]{11}/;
+            const youtubePlaylistRegex = /^(https?:\/\/)?(www\.)?youtube\.com\/playlist\?list=[a-zA-Z0-9_-]+/;
+            const isValid = youtubeVideoRegex.test(url) || youtubePlaylistRegex.test(url);
             
             if (url && isValid) {
                 button.style.background = 'var(--success)';
@@ -2816,44 +2820,8 @@
             const url = document.getElementById('youtube-url').value.trim();
             if (!url) return;
 
-            const statusDiv = document.getElementById('youtube-status');
-            statusDiv.style.display = 'block';
-            statusDiv.innerHTML = '⏳ Starting download...';
-            statusDiv.style.background = 'var(--bg-tertiary)';
-            statusDiv.style.color = 'var(--text-secondary)';
-
-            fetch('/api/youtube_download', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${authToken}`
-                },
-                body: JSON.stringify({ 
-                    url: url,
-                    audio_only: document.getElementById('youtube-audio-only').checked
-                })
-            })
-                .then(response => response.json())
-                .then(data => {
-                    if (data.success) {
-                        statusDiv.innerHTML = '✅ Download started! Check your media folder for the video.';
-                        statusDiv.style.background = 'rgba(76, 175, 80, 0.1)';
-                        statusDiv.style.color = '#4caf50';
-                        document.getElementById('youtube-url').value = '';
-                        // Refresh downloads list
-                        loadDownloads();
-                    } else {
-                        statusDiv.innerHTML = `❌ Error: ${data.error || 'Unknown error'}`;
-                        statusDiv.style.background = 'rgba(244, 67, 54, 0.1)';
-                        statusDiv.style.color = '#f44336';
-                    }
-                })
-                .catch(error => {
-                    console.error('YouTube download error:', error);
-                    statusDiv.innerHTML = '❌ Download failed. Check the console for details.';
-                    statusDiv.style.background = 'rgba(244, 67, 54, 0.1)';
-                    statusDiv.style.color = '#f44336';
-                });
+            // Open destination selection modal instead of direct download
+            openYouTubeDestinationModal(url);
         }
 
         // Fetch actual cover images in the background
@@ -3088,6 +3056,191 @@
 
 
 
-    </script>
+            // YouTube destination modal functions
+        function openYouTubeDestinationModal(url) {
+            console.log('Opening YouTube destination modal for URL:', url);
+            const modal = document.getElementById('youtube-destination-modal');
+            const urlInput = document.getElementById('modal-youtube-url');
+            const destinationSelect = document.getElementById('youtube-destination-select');
+            
+            console.log('Modal element:', modal);
+            console.log('URL input element:', urlInput);
+            console.log('Destination select element:', destinationSelect);
+            
+            if (!urlInput) {
+                console.error('modal-youtube-url element not found!');
+                return;
+            }
+            
+            // Set the URL in the modal
+            urlInput.value = url;
+            
+            // Load available destinations
+            loadYouTubeDestinations();
+            
+            // Show the modal
+            modal.style.display = 'flex';
+        }
+
+        function closeYouTubeDestinationModal() {
+            const modal = document.getElementById('youtube-destination-modal');
+            modal.style.display = 'none';
+        }
+
+        function loadYouTubeDestinations() {
+            const destinationSelect = document.getElementById('youtube-destination-select');
+            const confirmBtn = document.getElementById('confirm-youtube-download-btn');
+            const loadingDiv = document.getElementById('youtube-destinations-loading');
+            const errorDiv = document.getElementById('youtube-destinations-error');
+
+            // Show loading, hide error
+            loadingDiv.style.display = 'block';
+            errorDiv.style.display = 'none';
+            confirmBtn.disabled = true;
+
+            // Clear all existing options
+            destinationSelect.innerHTML = '';
+
+            // Add event listener to enable/disable button based on selection
+            destinationSelect.addEventListener('change', function() {
+                confirmBtn.disabled = !this.value;
+            });
+
+            // Fetch available media paths
+            fetch('/api/auth/media-paths', {
+                headers: { 'Authorization': `Bearer ${authToken}` }
+            })
+            .then(response => response.json())
+            .then(data => {
+                // Hide loading
+                loadingDiv.style.display = 'none';
+
+                // Add media paths
+                if (data.media_paths && data.media_paths.length > 0) {
+                    console.log('Loaded media paths:', data.media_paths);
+                    data.media_paths.forEach((path, index) => {
+                        const option = document.createElement('option');
+                        option.value = path.media_path;
+                        option.textContent = path.path_name;
+                        destinationSelect.appendChild(option);
+                        
+                        // Auto-select the first option
+                        if (index === 0) {
+                            option.selected = true;
+                        }
+                    });
+                    
+                    // Trigger the change event to enable the button
+                    destinationSelect.dispatchEvent(new Event('change'));
+                } else {
+                    console.log('No media paths configured');
+                    // No paths available
+                    const option = document.createElement('option');
+                    option.value = '';
+                    option.textContent = 'No destinations available - configure media paths in Settings';
+                    option.disabled = true;
+                    destinationSelect.appendChild(option);
+                }
+            })
+            .catch(error => {
+                console.error('Failed to load destinations:', error);
+                loadingDiv.style.display = 'none';
+                errorDiv.style.display = 'block';
+                
+                const option = document.createElement('option');
+                option.value = '';
+                option.textContent = 'Error loading destinations';
+                option.disabled = true;
+                destinationSelect.appendChild(option);
+            });
+        }
+
+        function confirmYouTubeDownload() {
+            console.log('confirmYouTubeDownload called');
+            const url = document.getElementById('modal-youtube-url').value.trim();
+            const destinationSelect = document.getElementById('youtube-destination-select');
+            const selectedPath = destinationSelect.value;
+            
+            console.log('URL:', url, 'Selected path:', selectedPath);
+            
+            if (!url || !selectedPath) {
+                console.error('Validation failed: URL or destination not selected');
+                return;
+            }
+            
+            // Close the modal
+            closeYouTubeDestinationModal();
+            
+            // Proceed with download using selected destination
+            console.log('Starting YouTube download for URL:', url, 'to destination:', selectedPath);
+            fetch('/api/youtube_download', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${authToken}`
+                },
+                body: JSON.stringify({
+                    url: url,
+                    destination_path: selectedPath,
+                    audio_only: document.getElementById('youtube-audio-only').checked
+                })
+            })
+            .then(response => {
+                console.log('Download API response status:', response.status);
+                return response.json();
+            })
+            .then(data => {
+                console.log('Download API response data:', data);
+                if (data.success) {
+                    // Show success message and refresh downloads
+                    loadDownloads();
+                    // Switch to downloads tab
+                    switchTab('downloads');
+                } else {
+                    console.error('Download failed:', data.error || 'Unknown error');
+                }
+            })
+            .catch(error => {
+                console.error('Download error:', error);
+            });
+        }
+</script>
+
+<!-- YouTube Destination Selection Modal -->
+<div id='youtube-destination-modal' class='modal-overlay' onclick='closeYouTubeDestinationModal(event)'>
+    <div class='modal-content' onclick='event.stopPropagation()' style='max-width: 600px;'>
+        <div class='modal-header'> Select Download Destination</div>
+        <div class='modal-body'>
+            <p style='color: var(--text-secondary); margin-bottom: 20px; font-size: 0.95rem;'>
+                Choose where to save your YouTube download:
+            </p>
+
+            <!-- Hidden input for URL -->
+            <input type='hidden' id='modal-youtube-url'>
+
+            <!-- Destination selection -->
+            <div style='margin-bottom: 20px;'>
+                <label for='youtube-destination-select' style='display: block; color: var(--text-primary); font-weight: 600; margin-bottom: 8px;'>
+                    Destination:
+                </label>
+                <select id='youtube-destination-select' style='width: 100%; padding: 12px; border: 2px solid var(--border-color); border-radius: 6px; background: var(--bg-secondary); color: var(--text-primary); font-size: 1rem;'>
+                </select>
+            </div>
+
+            <div id='youtube-destinations-loading' style='text-align: center; color: var(--text-secondary); padding: 20px; display: none;'>
+                Loading destinations...
+            </div>
+
+            <div id='youtube-destinations-error' style='display: none; color: #f44336; background: rgba(244, 67, 54, 0.1); border: 1px solid rgba(244, 67, 54, 0.3); border-radius: 8px; padding: 15px; margin-top: 15px;'>
+                Failed to load destinations. Please check your configuration.
+            </div>
+        </div>
+        <div class='modal-footer'>
+            <button type='button' class='modal-btn modal-btn-secondary' onclick='closeYouTubeDestinationModal()'>Cancel</button>
+            <button type='button' class='modal-btn modal-btn-primary' id='confirm-youtube-download-btn' onclick='confirmYouTubeDownload()' disabled> Start Download</button>
+        </div>
+    </div>
+</div>
+
 </body>
 </html>

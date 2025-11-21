@@ -573,6 +573,15 @@ def delete_download(download_id):
                 'status': 'cancelled',
                 'error': 'Download cancelled by user'
             })
+            
+            # Also update the in-memory entry to signal cancellation to the background thread
+            global youtube_downloads
+            for yt_download in youtube_downloads:
+                if yt_download.get('db_id') == download_id:
+                    yt_download['status'] = 'cancelled'
+                    yt_download['error'] = 'Download cancelled by user'
+                    break
+            
             print(f"✗ Download cancelled: {download.get('title', 'Unknown')}")
             # Give thread a moment to see the cancellation
             import time
@@ -801,24 +810,15 @@ def downloads_config():
 @token_required
 def get_downloads():
     """Get download queue status"""
-    # TODO: Integrate with actual download queue
-    downloads = []
-    total = 0
-    completed = 0
-    pending = 0
-    failed = 0
+    user_id = request.user_id
     
-    # Add manga downloads (placeholder)
-    # Add YouTube downloads
-    for yt_download in youtube_downloads:
-        downloads.append(yt_download)
-        total += 1
-        if yt_download['status'] == 'completed':
-            completed += 1
-        elif yt_download['status'] == 'downloading':
-            pending += 1  # or downloading
-        elif yt_download['status'] == 'failed':
-            failed += 1
+    # Get downloads from database
+    downloads = auth_db.get_user_downloads(user_id)
+    
+    total = len(downloads)
+    completed = sum(1 for d in downloads if d.get('status') == 'completed')
+    pending = sum(1 for d in downloads if d.get('status') in ['pending', 'downloading'])
+    failed = sum(1 for d in downloads if d.get('status') == 'failed')
     
     return jsonify({
         'downloads': downloads,
@@ -833,30 +833,35 @@ def get_downloads():
 @token_required
 def youtube_download():
     """Download a YouTube video"""
+    print("YouTube download request received")
     data = request.get_json()
+    print(f"Request data: {data}")
     url = data.get('url')
+    destination_path = data.get('destination_path')
+    print(f"URL: {url}, Destination: {destination_path}")
     if not url:
+        print("No URL provided")
         return jsonify({'error': 'URL required'}), 400
+    if not destination_path:
+        print("No destination path provided")
+        return jsonify({'error': 'Destination path required'}), 400
     
-    # Get user's download path
-    download_path = auth_db.get_download_path(request.user_id)
-    if not download_path:
-        return jsonify({'error': 'Download path not configured'}), 400
+    # Capture user_id from request context before starting thread
+    user_id = request.user_id
     
-    # Get user's media paths
-    media_paths = auth_db.get_media_paths(request.user_id)
-    if not media_paths:
-        return jsonify({'error': 'Media paths not configured'}), 400
+    # Validate that the destination_path is one of the user's configured media paths
+    user_media_paths = auth_db.get_media_paths(request.user_id)
+    valid_paths = [os.path.normpath(path['media_path']) for path in user_media_paths]
+    normalized_destination = os.path.normpath(destination_path)
     
-    # Use the first media path for YouTube videos
-    media_path = media_paths[0]['media_path']  # Get first media path
+    if normalized_destination not in valid_paths:
+        return jsonify({'error': 'Invalid destination path'}), 400
     
-    # Create YouTube folder in media path
-    youtube_dir = os.path.join(media_path, 'YouTube')
-    os.makedirs(youtube_dir, exist_ok=True)
+    # Use the provided destination path directly
+    youtube_dir = destination_path
     
     # Start download in background thread
-    def download_video():
+    def download_video(user_id):
         audio_only = data.get('audio_only', False)
         
         # Add to downloads list
@@ -877,26 +882,94 @@ def youtube_download():
         youtube_downloads.append(download_entry)
         
         try:
-            # Download to download path first
-            temp_dir = os.path.join(download_path, 'YouTube_temp')
+            # Download to temp directory in nukedown folder
+            download_base = auth_db.get_download_path(user_id)
+            if not download_base:
+                raise Exception("Download path not set. Please set your download path in the web interface first.")
+            download_nukedown_path = os.path.join(os.path.normpath(download_base), 'nukedown')
+            temp_dir = os.path.join(download_nukedown_path, 'YouTube_temp')
             os.makedirs(temp_dir, exist_ok=True)
             
+            # Also add to database
+            db_download_id = auth_db.add_download(user_id, {
+                'title': 'YouTube Download',
+                'source': 'YouTube',
+                'url': url,
+                'status': 'downloading',
+                'progress': 0,
+                'destination': youtube_dir,
+                'temp_path': temp_dir
+            })
+            
+            # Update the in-memory entry with the database ID
+            download_entry['db_id'] = db_download_id
+            
             # Get video info to determine if it's a playlist
-            info_opts = {'quiet': True, 'no_warnings': True}
-            with yt_dlp.YoutubeDL(info_opts) as ydl:
-                info = ydl.extract_info(url, download=False)
+            info_opts = {
+                'quiet': True, 
+                'no_warnings': True,
+                # Anti-detection measures for info extraction
+                'user_agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+                'http_headers': {
+                    'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7',
+                    'Accept-Language': 'en-US,en;q=0.9',
+                    'Accept-Encoding': 'gzip, deflate, br',
+                    'DNT': '1',
+                    'Connection': 'keep-alive',
+                    'Upgrade-Insecure-Requests': '1',
+                    'Sec-Fetch-Dest': 'document',
+                    'Sec-Fetch-Mode': 'navigate',
+                    'Sec-Fetch-Site': 'none',
+                    'Sec-Fetch-User': '?1',
+                    'Cache-Control': 'max-age=0',
+                },
+                'sleep_interval': 1,
+                'max_sleep_interval': 3,
+            }
             
-            is_playlist = 'entries' in info
-            has_chapters = 'chapters' in info and len(info['chapters']) > 1
+            # Add cookie file if it exists
+            cookie_file = os.path.join(os.path.dirname(__file__), 'config', 'youtube_cookies.txt')
+            if os.path.exists(cookie_file):
+                info_opts['cookiefile'] = cookie_file
             
-            # Update title with actual video/playlist title
-            if is_playlist:
-                download_entry['title'] = f"YouTube Playlist: {info.get('title', 'Unknown Playlist')}"
-            else:
-                download_entry['title'] = f"YouTube: {info.get('title', 'Unknown Video')}"
+            try:
+                with yt_dlp.YoutubeDL(info_opts) as ydl:
+                    info = ydl.extract_info(url, download=False)
+                
+                is_playlist = 'entries' in info
+                has_chapters = 'chapters' in info and len(info['chapters']) > 1
+                
+                # Update title with actual video/playlist title
+                if is_playlist:
+                    download_entry['title'] = f"{info.get('title', 'Unknown Playlist')}"
+                else:
+                    download_entry['title'] = f"{info.get('title', 'Unknown Video')}"
+            except Exception as info_error:
+                error_msg = str(info_error)
+                if 'sign in' in error_msg.lower() or 'captcha' in error_msg.lower() or 'bot' in error_msg.lower():
+                    print(f"YouTube bot detection during info extraction: {error_msg}")
+                    return jsonify({'error': 'YouTube is blocking access due to bot detection. Please set up cookies using: python setup_youtube_cookies.py'}), 429
+                else:
+                    print(f"Warning: Could not extract info for {url}: {info_error}")
+                    # Fallback: assume it's a single video if info extraction fails
+                    is_playlist = False
+                    has_chapters = False
+                    download_entry['title'] = f"{url.split('?')[0].split('/')[-1] or 'Unknown'}"
+            
+            # Update title in database
+            if 'db_id' in download_entry:
+                auth_db.update_download(download_entry['db_id'], user_id, {
+                    'title': download_entry['title']
+                })
             
             # Progress hook function
             def progress_hook(d):
+                # Check if download has been cancelled
+                if download_entry.get('status') == 'cancelled':
+                    print(f"🛑 Download cancelled by user: {download_entry.get('title', 'Unknown')}")
+                    # Raise exception to stop yt-dlp
+                    raise Exception("Download cancelled by user")
+                
                 if d['status'] == 'downloading':
                     try:
                         total = d.get('total_bytes') or d.get('total_bytes_estimate', 0)
@@ -904,17 +977,86 @@ def youtube_download():
                         if total > 0:
                             progress = int((downloaded / total) * 100)
                             download_entry['progress'] = progress
+                            # Update progress in database
+                            if 'db_id' in download_entry:
+                                auth_db.update_download(download_entry['db_id'], user_id, {
+                                    'progress': progress
+                                })
                     except:
                         pass
                 elif d['status'] == 'finished':
+                    # For playlists, move completed video files immediately
+                    if is_playlist and 'filename' in d:
+                        # Get the video filename that just finished
+                        finished_file = d['filename']
+                        if os.path.exists(finished_file):
+                            try:
+                                # Find the relative path from temp_dir
+                                rel_path = os.path.relpath(finished_file, temp_dir)
+                                dst = os.path.join(youtube_dir, rel_path)
+                                
+                                # Create destination directory
+                                os.makedirs(os.path.dirname(dst), exist_ok=True)
+                                
+                                # Move the file
+                                shutil.move(finished_file, dst)
+                                print(f"✓ Moved completed video: {os.path.basename(finished_file)}")
+                                
+                                # Also move any related files (thumbnail, info.json, etc.)
+                                finished_dir = os.path.dirname(finished_file)
+                                video_basename = os.path.splitext(os.path.basename(finished_file))[0]
+                                
+                                for file in os.listdir(finished_dir):
+                                    if file.startswith(video_basename) and file != os.path.basename(finished_file):
+                                        src_related = os.path.join(finished_dir, file)
+                                        dst_related = os.path.join(os.path.dirname(dst), file)
+                                        try:
+                                            shutil.move(src_related, dst_related)
+                                            print(f"✓ Moved related file: {file}")
+                                        except Exception as e:
+                                            print(f"⚠️ Failed to move related file {file}: {e}")
+                            except Exception as e:
+                                print(f"⚠️ Failed to move completed video {finished_file}: {e}")
+                    
                     download_entry['progress'] = 100
+                    # Update progress in database
+                    if 'db_id' in download_entry:
+                        auth_db.update_download(download_entry['db_id'], user_id, {
+                            'progress': 100
+                        })
+            
+            # Base options for all downloads
+            base_opts = {
+                'user_agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+                'http_headers': {
+                    'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7',
+                    'Accept-Language': 'en-US,en;q=0.9',
+                    'Accept-Encoding': 'gzip, deflate, br',
+                    'DNT': '1',
+                    'Connection': 'keep-alive',
+                    'Upgrade-Insecure-Requests': '1',
+                    'Sec-Fetch-Dest': 'document',
+                    'Sec-Fetch-Mode': 'navigate',
+                    'Sec-Fetch-Site': 'none',
+                    'Sec-Fetch-User': '?1',
+                    'Cache-Control': 'max-age=0',
+                },
+                'sleep_interval': 1,
+                'max_sleep_interval': 5,
+            }
+            
+            # Add cookie file if it exists
+            cookie_file = os.path.join(os.path.dirname(__file__), 'config', 'youtube_cookies.txt')
+            if os.path.exists(cookie_file):
+                base_opts['cookiefile'] = cookie_file
             
             if audio_only:
                 if is_playlist:
                     outtmpl = '%(playlist_title)s/%(title)s.%(ext)s'
                 else:
                     outtmpl = '%(title)s/%(title)s.%(ext)s'
-                ydl_opts = {
+                ydl_opts = base_opts.copy()
+                ydl_opts.update({
                     'outtmpl': os.path.join(temp_dir, outtmpl),
                     'format': 'bestaudio/best',
                     'writethumbnail': True,
@@ -925,64 +1067,128 @@ def youtube_download():
                         'preferredcodec': 'mp3',
                         'preferredquality': '192',
                     }],
-                }
+                })
             else:
                 if has_chapters:
                     outtmpl = '%(title)s/%(title)s - %(section_number)s %(section_title)s.%(ext)s'
-                    ydl_opts = {
+                    ydl_opts = base_opts.copy()
+                    ydl_opts.update({
                         'outtmpl': os.path.join(temp_dir, outtmpl),
                         'format': 'best[height<=1080]',
                         'split_chapters': True,
                         'writethumbnail': True,
                         'writeinfojson': True,
                         'progress_hooks': [progress_hook],
-                    }
+                    })
                 elif is_playlist:
                     outtmpl = '%(playlist_title)s/%(title)s/%(title)s.%(ext)s'
-                    ydl_opts = {
+                    ydl_opts = base_opts.copy()
+                    ydl_opts.update({
                         'outtmpl': os.path.join(temp_dir, outtmpl),
                         'format': 'best[height<=1080]',
                         'writethumbnail': True,
                         'writeinfojson': True,
                         'progress_hooks': [progress_hook],
-                    }
+                    })
                 else:
                     outtmpl = '%(title)s/%(title)s.%(ext)s'
-                    ydl_opts = {
+                    ydl_opts = base_opts.copy()
+                    ydl_opts.update({
                         'outtmpl': os.path.join(temp_dir, outtmpl),
                         'format': 'best[height<=1080]',
                         'writethumbnail': True,
                         'writeinfojson': True,
                         'progress_hooks': [progress_hook],
-                    }
+                    })
             
             with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-                ydl.download([url])
+                try:
+                    ydl.download([url])
+                except Exception as download_error:
+                    error_msg = str(download_error)
+                    if 'sign in' in error_msg.lower() or 'captcha' in error_msg.lower() or 'bot' in error_msg.lower():
+                        print(f"YouTube is blocking the download due to bot detection. Error: {error_msg}")
+                        print("To fix this, set up YouTube cookies using: python setup_youtube_cookies.py")
+                        download_entry['status'] = 'failed'
+                        download_entry['error'] = 'YouTube bot detection - cookies required. Run: python setup_youtube_cookies.py'
+                        # Update database
+                        if 'db_id' in download_entry:
+                            auth_db.update_download(download_entry['db_id'], user_id, {
+                                'status': 'failed',
+                                'error': download_entry['error']
+                            })
+                        return jsonify({'error': 'YouTube bot detection blocked the download. Please set up cookies using the setup script.'}), 429
+                    else:
+                        raise download_error
             
-            # After download, move files to media path
-            for root, dirs, files in os.walk(temp_dir):
-                for file in files:
-                    src = os.path.join(root, file)
-                    rel_path = os.path.relpath(src, temp_dir)
-                    dst = os.path.join(youtube_dir, rel_path)
-                    os.makedirs(os.path.dirname(dst), exist_ok=True)
-                    shutil.move(src, dst)
+            # After download, move any remaining files to destination
+            # (For playlists, individual videos are moved as they complete)
+            files_moved = []
+            try:
+                for root, dirs, files in os.walk(temp_dir):
+                    for file in files:
+                        try:
+                            src = os.path.join(root, file)
+                            rel_path = os.path.relpath(src, temp_dir)
+                            dst = os.path.join(youtube_dir, rel_path)
+                            os.makedirs(os.path.dirname(dst), exist_ok=True)
+                            shutil.move(src, dst)
+                            files_moved.append(rel_path)
+                        except Exception as e:
+                            print(f"⚠️ Failed to move file {file}: {e}")
+                
+                if files_moved:
+                    print(f"✓ Moved {len(files_moved)} remaining files to destination")
+            except Exception as e:
+                print(f"⚠️ Error during final file moving: {e}")
             
             # Clean up temp directory
-            shutil.rmtree(temp_dir)
+            try:
+                shutil.rmtree(temp_dir)
+                print("✓ Cleaned up temporary directory")
+            except Exception as e:
+                print(f"⚠️ Failed to clean up temp directory {temp_dir}: {e}")
             
             # Mark as completed
             download_entry['status'] = 'completed'
             download_entry['progress'] = 100
             download_entry['completed_at'] = datetime.now().isoformat()
             
+            # Update database with completion
+            if 'db_id' in download_entry:
+                auth_db.update_download(download_entry['db_id'], user_id, {
+                    'status': 'completed',
+                    'progress': 100
+                })
+            
         except Exception as e:
             print(f"YouTube download error: {e}")
-            download_entry['status'] = 'failed'
+            
+            # Check if this was a cancellation
+            if str(e) == "Download cancelled by user":
+                download_entry['status'] = 'cancelled'
+                download_entry['error'] = 'Download cancelled by user'
+                
+                # Update database with cancellation
+                if 'db_id' in download_entry:
+                    auth_db.update_download(download_entry['db_id'], user_id, {
+                        'status': 'cancelled',
+                        'error': 'Download cancelled by user'
+                    })
+            else:
+                download_entry['status'] = 'failed'
+                
+                # Update database with failure
+                if 'db_id' in download_entry:
+                    auth_db.update_download(download_entry['db_id'], user_id, {
+                        'status': 'failed',
+                        'error': str(e)
+                    })
     
-    thread = threading.Thread(target=download_video)
+    thread = threading.Thread(target=download_video, args=(user_id,))
     thread.daemon = True
     thread.start()
+    print("Download thread started")
     
     return jsonify({'success': True, 'message': 'Download started'}), 200
 
