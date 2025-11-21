@@ -1971,9 +1971,13 @@
                 
                 if (isEditing) {
                     // Delete old path and create new one (to handle name changes)
-                    const deleteResponse = await fetch(`/api/auth/media-path/${encodeURIComponent(oldName)}`, {
+                    const deleteResponse = await fetch('/api/auth/media-path', {
                         method: 'DELETE',
-                        headers: { 'Authorization': `Bearer ${authToken}` }
+                        headers: { 
+                            'Authorization': `Bearer ${authToken}`,
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({ path_name: oldName })
                     });
                     
                     if (!deleteResponse.ok) {

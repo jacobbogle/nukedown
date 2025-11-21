@@ -103,6 +103,24 @@ class AuthDB:
         ''')
         
         conn.commit()
+        
+        # Create default user if no users exist
+        cursor.execute('SELECT COUNT(*) FROM users')
+        user_count = cursor.fetchone()[0]
+        
+        if user_count == 0:
+            # Create default admin user
+            default_username = 'root'
+            default_password = 'adminpass'
+            password_hash = self._hash_password(default_password)
+            
+            cursor.execute(
+                'INSERT INTO users (username, password_hash) VALUES (?, ?)',
+                (default_username, password_hash)
+            )
+            conn.commit()
+            print(f"Created default user: {default_username}")
+        
         conn.close()
     
     @staticmethod

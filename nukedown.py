@@ -114,11 +114,6 @@ def login_page():
     """Login page"""
     return render_template('login.html')
 
-@app.route('/register', methods=['GET'])
-def register_page():
-    """Register page"""
-    return render_template('register.html')
-
 @app.route('/api/auth/login', methods=['POST'])
 def api_login():
     """Login API endpoint"""
@@ -135,27 +130,6 @@ def api_login():
     
     token = auth_db.create_session(user_id)
     return jsonify({'token': token}), 200
-
-@app.route('/api/auth/register', methods=['POST'])
-def api_register():
-    """Register API endpoint"""
-    data = request.get_json()
-    username = data.get('username')
-    password = data.get('password')
-    
-    if not username or not password:
-        return jsonify({'message': 'Username and password required'}), 400
-    
-    if len(username) < 3 or len(username) > 20:
-        return jsonify({'message': 'Username must be 3-20 characters'}), 400
-    
-    if len(password) < 6:
-        return jsonify({'message': 'Password must be at least 6 characters'}), 400
-    
-    if auth_db.create_user(username, password):
-        return jsonify({'message': 'Account created successfully'}), 201
-    else:
-        return jsonify({'message': 'Username already exists'}), 409
 
 @app.route('/api/auth/download-path', methods=['POST'])
 @token_required
